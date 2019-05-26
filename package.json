@@ -1,0 +1,11 @@
+{
+  "name": "uno-bot",
+  "version": "1.0.0",
+  "description": "plays uno",
+  "main": "bot.js",
+  "author": "_Bedrockbreaker_",
+  "dependencies": {
+    "discord.io": "https://github.com/woor/discord.io/tarball/gateway_v6",
+    "winston": "^3.2.1"
+  }
+}
