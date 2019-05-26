@@ -39,7 +39,7 @@ logger.add(new logger.transports.Console, {
 logger.level = 'debug';
 //Initialize Discord Bot
 var bot = new Discord.Client({
-   token: process.env.TOKEN,
+   token: process.env.token,
    autorun: true
 });
 bot.on('ready', function (evt) {
