@@ -321,6 +321,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 								}
 							}
 						}
+						var prevAmount = players[userID].length;
 						var cards = draw(drawNum);
 						for (i = 0; i < cards.length; i++) {
 							players[playerList[currentPlayer]].splice(players[playerList[currentPlayer]].length,0, cards[i]);
@@ -342,17 +343,16 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 							if (discard[discard.length-1] == "ww4") {
 								action += ". **The color is " + idToName(currentColor) + "**"
 							}
-							newMsg[0].fields[0].value = "It is currently <@" + playerList[currentPlayer] + ">'s turn. Type u!<cardID> to discard a card!\nOr type 'u!<cardID> <color>' to discard a wild." + extraRuleText + "\n<@" + userID + "> drew " + drawNum + " cards" + action;
+							newMsg[0].fields[0].value = "It is currently <@" + playerList[currentPlayer] + ">'s turn. Type u!<cardID> to discard a card!\nOr type 'u!<cardID> <color>' to discard a wild." + extraRuleText + "\n<@" + userID + "> drew " + (players[userID].length-prevAmount) + " cards" + action;
 							newMsg[0].footer.text = getReadableScoreCards();
 							bot.editMessage({
 								channelID: channelID,
 								messageID: response.id,
 								message: "",
 								embed: newMsg[0]
-							}, function(err, response) {
-								drawNum = 0;
 							});
 						});
+						drawNum = 0;
 						reEvalUnos();
 					}
 				}
@@ -944,6 +944,8 @@ function endGame(channelID) {
 	drawNum = 0;
 	currentColor = "";
 	
+	nicks = [];
+	
 	bot.sendMessage({
 		to: channelID,
 		message: "Uno Game Ended"
@@ -961,9 +963,9 @@ function endUser(userID, channelID) {
 		playerList = getPlayers(false);
 		
 		delete players[userID];
-		scores.splice(playerList.indexOf(userID));
-		unos.splice(playerList.indexOf(userID));
-		nicks.splice(playerList.indexOf(userID));
+		scores.splice(playerList.indexOf(userID),1);
+		unos.splice(playerList.indexOf(userID),1);
+		nicks.splice(playerList.indexOf(userID),1);
 		if(!getPlayers(false).length) {
 			endGame(channelID);
 		} else {
