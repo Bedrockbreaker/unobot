@@ -799,6 +799,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 						} else {
 							result = "undefined";
 						}
+					}
 					ans = result;
 					bot.sendMessage({
 						to: channelID,
