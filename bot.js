@@ -796,13 +796,10 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 					if (!result) {
 						if (result != undefined) {
 							result = result.toString();
-							ans = result;
 						} else {
 							result = "undefined";
 						}
-					} else {
-						ans = result;
-					}
+					ans = result;
 					bot.sendMessage({
 						to: channelID,
 						message: result
