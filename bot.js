@@ -11,6 +11,7 @@ fs.readFile("count.txt", function(err,data) {
 	counter = Number(data);
 	console.log("Successfully read file");
 });
+var ans = null;
 
 var gamePhase = 0;
 var msgID = [];
@@ -783,7 +784,8 @@ bot.on('message', function (user, userID, channelID, message, evt) {
             break;
 			case 'log':
 				try {
-					console.log(eval(args.join(" ")));
+					ans = eval(args.join(" "));
+					console.log(ans);
 				} catch(err) {
 					console.log(err);
 				}
@@ -794,9 +796,12 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 					if (!result) {
 						if (result != undefined) {
 							result = result.toString();
+							ans = result;
 						} else {
 							result = "undefined";
 						}
+					} else {
+						ans = result;
 					}
 					bot.sendMessage({
 						to: channelID,
