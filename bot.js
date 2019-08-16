@@ -822,7 +822,11 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 			doTheHa = true;
 		}
 		if (ha != 0) {
-			if (message[ha-1] == " " && message[ha+2] == " ") {
+			if (message.length > ha+2) {
+				if (message[ha-1] == " " && message[ha+2] == " ") {
+					doTheHa = true;
+				}
+			} else if (message[ha-1] == " ") {
 				doTheHa = true;
 			}
 		} else {
