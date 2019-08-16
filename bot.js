@@ -813,9 +813,36 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 				}
             break;
             // Just add any case commands if you want to..
-         }
-	 }
-	 console.log(message);
+        }
+	}
+	if(message.indexOf("ha") != -1) {
+		var ha = message.indexOf("ha");
+		var doTheHa = false;
+		if (message.length == 2) {
+			doTheHa = true;
+		}
+		if (ha != 0) {
+			if (message[ha-1] == " " && message[ha+2] == " ") {
+				doTheHa = true;
+			}
+		} else {
+			if (message[ha+2] == " ") {
+				doTheHa = true;
+			}
+		}
+		if (doTheHa) {
+			bot.sendMessage({
+				to: channelID,
+				embed: {
+					color: "" + (Math.floor(Math.random() * 16777215) + 1),
+					image: {
+						url: "https://cdn.discordapp.com/attachments/563223150569979909/612064679581450247/big_ha.png"
+					}
+				}
+			});
+		}
+	}
+	console.log(message);
 });
 
 function shuffle(array) {
