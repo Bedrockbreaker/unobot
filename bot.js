@@ -815,22 +815,23 @@ bot.on('message', function (user, userID, channelID, message, evt) {
             // Just add any case commands if you want to..
         }
 	}
-	if(message.indexOf("ha") != -1) {
+	if(message.toLowerCase().indexOf("ha") != -1) {
 		var ha = message.indexOf("ha");
 		var doTheHa = false;
+		var allowedChars = [" ", "~", "*", "_", "h", "a"];
 		if (message.length == 2) {
 			doTheHa = true;
 		}
 		if (ha != 0) {
 			if (message.length > ha+2) {
-				if (message[ha-1] == " " && message[ha+2] == " ") {
+				if (allowedChars.includes(message[ha-1]) && allowedChars.includes(message[ha+2])) {
 					doTheHa = true;
 				}
-			} else if (message[ha-1] == " ") {
+			} else if (allowedChars.includes(message[ha-1])) {
 				doTheHa = true;
 			}
 		} else {
-			if (message[ha+2] == " ") {
+			if (allowedChars.includes(message[ha+2])) {
 				doTheHa = true;
 			}
 		}
