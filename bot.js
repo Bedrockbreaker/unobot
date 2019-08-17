@@ -816,6 +816,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
         }
 	}
 	if(message.toLowerCase().indexOf("ha") != -1) {
+		message = message.toLowerCase();
 		var ha = message.indexOf("ha");
 		var doTheHa = false;
 		var allowedChars = [" ", "~", "*", "_", "h", "a"];
