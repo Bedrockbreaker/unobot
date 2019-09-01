@@ -92,7 +92,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 									messageID: msgID[2]
 								}, function(err, response) {
 									var newMsg = response.embeds;
-									newMsg[0].fields[0].value = newMsg[0].fields[0].value.substring(0,18) + playerList[currentPlayer] + newMsg[0].fields[0].value.substring(newMsg[0].fields[0].value.indexOf(">"));
+									newMsg[0].fields[0].value = newMsg[0].fields[0].value.substring(0,18) + getPlayers(false)[currentPlayer] + newMsg[0].fields[0].value.substring(newMsg[0].fields[0].value.indexOf(">"));
 									newMsg[0].footer.text = getReadableScoreCards();
 									bot.editMessage({
 										channelID: channelID,
