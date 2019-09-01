@@ -432,10 +432,12 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 						}
 						unos[unoer] = 1;
 					} else {
+						var correctUno = false;
 						for (j = 0; j < playerList.length; j++) {
 							if (unos[j] < 0) {
+								correctUno = true;
 								var cards = draw(2);
-								console.log(j);
+								//console.log(j);
 								for (i = 0; i < cards.length; i++) {
 									players[playerList[j]].splice(players[playerList[j]].length,0, cards[i]);
 								}
@@ -467,6 +469,38 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 									});
 								});
 							}
+						}
+						if (!correctUno) {
+							var cards = draw(2);
+							cards.forEach(function(elem) {
+								players[userID].push(elem)
+							});
+							bot.sendMessage({
+									to: userID,
+									message: getReadableHand(players[userID])
+								}, function(err, response) {
+									bot.getMessage({
+										channelID: channelID,
+										messageID: msgID[2]
+									}, function(err, response) {
+										var newMsg = response.embeds;
+										var action = "";
+										if (discard[discard.length-1][0] == "w") {
+											action += ". **The color is " + idToName(currentColor) + "**";
+										}
+										if (drawNum) {
+											action += ". **" + drawNum + " cards stacked to draw**";
+										}
+										newMsg[0].fields[0].value = "It is currently <@" + playerList[currentPlayer] + ">'s turn. Type u!<cardID> to discard a card!\nOr type 'u!<cardID> <color>' to discard a wild." + extraRuleText + "\n<@" + playerList[k] + "> drew 2 cards from falsely calling 'u!uno'" + action;
+										newMsg[0].footer.text = getReadableScoreCards();
+										bot.editMessage({
+											channelID: channelID,
+											messageID: response.id,
+											message: "",
+											embed: newMsg[0]
+										});
+									});
+								});
 						}
 						reEvalUnos();
 					}
