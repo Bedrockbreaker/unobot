@@ -1215,6 +1215,7 @@ function canMatch(inputCard, compCard) {
 }
 
 function nextPlayer() {
+	var playerList = getPlayers(false);
 	if (dirPlay) {
 		currentPlayer = (currentPlayer + 1) % playerList.length;
 	} else {
