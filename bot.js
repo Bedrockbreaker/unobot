@@ -18,7 +18,7 @@ var msgID = [];
 var players = {};
 var scores = [0];
 var unos = [0];
-var rules = [false,false,false,false,false,false,7,20];
+var rules = [false,false,false,false,false,false,7,30];
 var currentPlayer = 0;
 
 var deck = [];
@@ -88,7 +88,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 									nextPlayer();
 								}
 								bot.getMessage({
-									channelID: channelID,
+									channelID: msgID[4],
 									messageID: msgID[2]
 								}, function(err, response) {
 									var newMsg = response.embeds;
@@ -1030,7 +1030,7 @@ function endGame(channelID) {
 	players = {};
 	scores = [0];
 	unos = [0];
-	rules = [false,false,false,false,false,false,7,20];
+	rules = [false,false,false,false,false,false,7,30];
 	currentPlayer = 0;
 
 	deck = [];
