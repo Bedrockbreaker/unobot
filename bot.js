@@ -310,7 +310,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 				}
 			break;
 			case "draw":
-				if(checkPhase(3) && channelID = msgID[4]) {
+				if(checkPhase(3) && channelID == msgID[4]) {
 					bot.deleteMessage({
 						channelID: channelID,
 						messageID: evt.d.id
