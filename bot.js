@@ -76,23 +76,49 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 				}
             break;
 			case 'quit':
-				if (gamePhase) {
-					if (endUser(userID, channelID, true)) {
-						bot.sendMessage({
-							to: channelID,
-							message: "Bye <@" + userID + ">!"
-						});
+				if (channelID == msgID[4] || channelID == msgID[5] || channelID == msgID[6]) {
+					if (gamePhase) {
+						var userExists = getPlayers(false).indexOf(userID);
+						if (userExists>-1) {
+							if (gamePhase == 3) {
+								if (channelID != msgID[4]) {
+									return;
+								}
+								if (userExists == currentPlayer) {
+									nextPlayer();
+								}
+								bot.getMessage({
+									channelID: channelID,
+									messageID: msgID[2]
+								}, function(err, response) {
+									var newMsg = response.embeds;
+									newMsg[0].fields[0].value = newMsg[0].fields[0].value.substring(0,18) + playerList[currentPlayer] + newMsg[0].fields[0].value.substring(newMsg[0].fields[0].value.indexOf(">"));
+									newMsg[0].footer.text = getReadableScoreCards();
+									bot.editMessage({
+										channelID: channelID,
+										messageID: response.id,
+										message: "",
+										embed: newMsg[0]
+									});
+								});
+							}
+							endUser(userID, channelID);
+							bot.sendMessage({
+								to: channelID,
+								message: "Bye <@" + userID + ">!"
+							});
+						} else {
+							bot.sendMessage({
+								to: channelID,
+								message: "<@" + userID + ">, you're not even in the game!"
+							});
+						}
 					} else {
 						bot.sendMessage({
 							to: channelID,
-							message: "<@" + userID + ">, you're not even in the game!"
+							message: "A game hasn't started yet! Type 'u!startgame' to start one"
 						});
 					}
-				} else {
-					bot.sendMessage({
-						to: channelID,
-						message: "A game hasn't started yet! Type 'u!startgame' to start one"
-					});
 				}
             break;
 			case 'endgame':
@@ -251,30 +277,56 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 				}
 			break;
 			case "kick":
-				if(gamePhase) {
-					var playerList = getPlayers(false);
-					if (playerList[0] == userID) {
-						args[0] = args[0].replace("!","").substring(2);
-						args[0] = args[0].substring(0,args[0].length-1);
-						if (endUser(args[0], channelID, true)) {
+				if (channelID == msgID[4] || channelID == msgID[5] || channelID == msgID[6]) {
+					if(gamePhase) {
+						var playerList = getPlayers(false);
+						if (playerList[0] == userID) {
+							args[0] = args[0].replace("!","").substring(2);
+							args[0] = args[0].substring(0,args[0].length-1);
+							var userExists = getPlayers(false).indexOf(args[0]);
+							if (userExists>-1) {
+								if (gamePhase == 3) {
+									if (channelID != msgID[4]) {
+										return;
+									}
+									if (userExists == currentPlayer) {
+										nextPlayer();
+									}
+									bot.getMessage({
+										channelID: channelID,
+										messageID: msgID[2]
+									}, function(err, response) {
+										var newMsg = response.embeds;
+										newMsg[0].fields[0].value = newMsg[0].fields[0].value.substring(0,18) + playerList[currentPlayer] + newMsg[0].fields[0].value.substring(newMsg[0].fields[0].value.indexOf(">"));
+										newMsg[0].footer.text = getReadableScoreCards();
+										bot.editMessage({
+											channelID: channelID,
+											messageID: response.id,
+											message: "",
+											embed: newMsg[0]
+										});
+									});
+								}
+								endUser(args[0], channelID);
+								bot.sendMessage({
+									to: channelID,
+									message: "Kicked <@" + args[0] + "> from the game"
+								});
+								return;
+							}
 							bot.sendMessage({
 								to: channelID,
-								message: "Kicked <@" + args[0] + "> from the game"
+								message: "Unable to find <@" + args[0] + ">. Did you @<name> them? Are they in the game?"
 							});
-							return;
+						} else {
+							notLeader(userID, channelID);
 						}
+					} else {
 						bot.sendMessage({
 							to: channelID,
-							message: "Unable to find <@" + args[0] + ">. Did you @<name> them? Are they in the game?"
+							message: "A game hasn't started yet! Type 'u!startgame' to start one"
 						});
-					} else {
-						notLeader(userID, channelID);
 					}
-				} else {
-					bot.sendMessage({
-						to: channelID,
-						message: "A game hasn't started yet! Type 'u!startgame' to start one"
-					});
 				}
 			break;
 			case "play":
@@ -557,7 +609,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 											}
 											for (i = scores.length; i >= 0; i--) {
 												if (scores[i] >= 500 && i != minScoreIndex && scores[i] != scores[minScoreIndex]) {
-													endUser(playerList[i],channelID,false);
+													endUser(playerList[i],channelID);
 													eliminees.push("<@" + playerList[i] + ">, ");
 													scores.splice(i,1);
 												}
@@ -997,9 +1049,12 @@ function endGame(channelID) {
 	});
 }
 
-function endUser(userID, channelID, goNext) {
+function endUser(userID, channelID) {
 	if (players[userID]) {
 		playerList = getPlayers(false);
+		players[userID].forEach(function(elem) {
+			deck.push(elem);
+		});
 		
 		delete players[userID];
 		scores.splice(playerList.indexOf(userID),1);
@@ -1013,9 +1068,6 @@ function endUser(userID, channelID, goNext) {
 				messageID: msgID[0],
 				message: "Players: <@" + playerList.join(">, <@") + ">"
 			});
-		}
-		if (goNext) {
-			nextPlayer();
 		}
 		return true;
 	}
