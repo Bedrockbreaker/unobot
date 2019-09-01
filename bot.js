@@ -672,7 +672,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 												players[userID] = players[color];
 												players[color] = temp;
 												
-												action += ". <@" + userID + "> swapped hands with <@" + color + ">";
+												action += " and swapped hands with <@" + color + ">";
 												//console.log(players);
 												if (currentPlayer != color) {
 													bot.sendMessage({
