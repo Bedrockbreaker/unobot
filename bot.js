@@ -476,31 +476,31 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 								players[userID].push(elem)
 							});
 							bot.sendMessage({
-									to: userID,
-									message: getReadableHand(players[userID])
+								to: userID,
+								message: getReadableHand(players[userID])
+							}, function(err, response) {
+								bot.getMessage({
+									channelID: channelID,
+									messageID: msgID[2]
 								}, function(err, response) {
-									bot.getMessage({
+									var newMsg = response.embeds;
+									var action = "";
+									if (discard[discard.length-1][0] == "w") {
+										action += ". **The color is " + idToName(currentColor) + "**";
+									}
+									if (drawNum) {
+										action += ". **" + drawNum + " cards stacked to draw**";
+									}
+									newMsg[0].fields[0].value = "It is currently <@" + playerList[currentPlayer] + ">'s turn. Type u!<cardID> to discard a card!\nOr type 'u!<cardID> <color>' to discard a wild." + extraRuleText + "\n<@" + playerList[k] + "> drew 2 cards from falsely calling 'u!uno'" + action;
+									newMsg[0].footer.text = getReadableScoreCards();
+									bot.editMessage({
 										channelID: channelID,
-										messageID: msgID[2]
-									}, function(err, response) {
-										var newMsg = response.embeds;
-										var action = "";
-										if (discard[discard.length-1][0] == "w") {
-											action += ". **The color is " + idToName(currentColor) + "**";
-										}
-										if (drawNum) {
-											action += ". **" + drawNum + " cards stacked to draw**";
-										}
-										newMsg[0].fields[0].value = "It is currently <@" + playerList[currentPlayer] + ">'s turn. Type u!<cardID> to discard a card!\nOr type 'u!<cardID> <color>' to discard a wild." + extraRuleText + "\n<@" + playerList[k] + "> drew 2 cards from falsely calling 'u!uno'" + action;
-										newMsg[0].footer.text = getReadableScoreCards();
-										bot.editMessage({
-											channelID: channelID,
-											messageID: response.id,
-											message: "",
-											embed: newMsg[0]
-										});
+										messageID: response.id,
+										message: "",
+										embed: newMsg[0]
 									});
 								});
+							});
 						}
 						reEvalUnos();
 					}
