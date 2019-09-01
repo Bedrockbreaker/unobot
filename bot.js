@@ -399,7 +399,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 						}, function(err, response) {
 							var newMsg = response.embeds;
 							var action = "";
-							if (discard[discard.length-1] == "ww4") {
+							if (discard[discard.length-1].substring(0,2) == "ww") {
 								action += ". **The color is " + idToName(currentColor) + "**"
 							}
 							newMsg[0].fields[0].value = "It is currently <@" + playerList[currentPlayer] + ">'s turn. Type u!<cardID> to discard a card!\nOr type 'u!<cardID> <color>' to discard a wild." + extraRuleText + "\n<@" + userID + "> drew " + (players[userID].length-prevAmount) + " cards" + action;
