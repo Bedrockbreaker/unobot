@@ -1329,7 +1329,7 @@ function reEvalUnos() {
 	for (i = 0; i < playerList.length; i++) {
 		if (players[playerList[i]].length == 1 && unos[i] != 1) {
 			unos[i] = -1;
-		} else if (unos[i] != 1){
+		} else if (players[playerList[i]].length > 1){
 			unos[i] = 0;
 		}
 	}
