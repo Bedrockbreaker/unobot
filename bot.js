@@ -70,6 +70,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 							message: "Players: <@" + getPlayers(false) + ">"
 						}, function(err, response) {
 							msgID[0] = response.id;
+							msgID[6] = response.channel_id;
 						})
 					});
 				}
@@ -109,7 +110,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 				}
             break;
 			case 'join':
-				if (checkPhase(1, channelID)) {
+				if (checkPhase(1, channelID) && channelID = msgID[6]) {
 					players[userID] = [];
 					scores.push(0);
 					unos.push(0);
@@ -169,6 +170,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 								}
 							}, function(err, response) {
 								msgID[1] = response.id;
+								msgID[5] = response.channel_id;
 								var emojis = ["💯","🔢","🔻","📚","🔄","⚡"];
 								addReactions(channelID, response.id, emojis);
 							});
@@ -184,7 +186,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 				}
 			break;
 			case "rule":
-				if (checkPhase(2, channelID)) {
+				if (checkPhase(2, channelID) && channelID == msgID[5]) {
 					if (userID == getPlayers(false)[0]) {
 						switch(args[0]) {
 							case "cards":
@@ -308,7 +310,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 				}
 			break;
 			case "draw":
-				if(checkPhase(3)) {
+				if(checkPhase(3) && channelID = msgID[4]) {
 					bot.deleteMessage({
 						channelID: channelID,
 						messageID: evt.d.id
@@ -359,7 +361,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 				}
 			break;
 			case "uno":
-				if(checkPhase(3)) {
+				if(checkPhase(3) && channelID == msgID[4]) {
 					bot.deleteMessage({
 						channelID: channelID,
 						messageID: evt.d.id
@@ -415,7 +417,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 				}
 			break;
 			case "challenge":
-				if (checkPhase(3)) {
+				if (checkPhase(3) && channelID == msgID[4]) {
 					bot.deleteMessage({
 						channelID: channelID,
 						messageID: evt.d.id
@@ -496,7 +498,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 			break;
 			//Just add any case commands if you want to..
 			default:
-				if(gamePhase == 3) {
+				if(gamePhase == 3 && channelID == msgID[4]) {
 					card = message.substring(2).slice(0,3).trimEnd();
 					playerList = getPlayers(false);
 					bot.deleteMessage({
@@ -1296,6 +1298,7 @@ function resetGame(channelID, playerList) {
 			}
 		}, function(err, response) {
 			msgID[2] = response.id;
+			msgID[4] = response.channel_id;
 		});
 	});
 }
