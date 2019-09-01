@@ -103,10 +103,14 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 								});
 							}
 							endUser(userID, channelID);
-							bot.sendMessage({
-								to: channelID,
-								message: "Bye <@" + userID + ">!"
-							});
+							if (getPlayers(false).length>1) {
+								bot.sendMessage({
+									to: channelID,
+									message: "Bye <@" + userID + ">!"
+								});
+							} else {
+								endGame(channelID);
+							}
 						} else {
 							bot.sendMessage({
 								to: channelID,
@@ -1060,8 +1064,10 @@ function endUser(userID, channelID) {
 		scores.splice(playerList.indexOf(userID),1);
 		unos.splice(playerList.indexOf(userID),1);
 		nicks.splice(playerList.indexOf(userID),1);
-		if(!getPlayers(false).length) {
-			endGame(channelID);
+		if(getPlayers(false).length<2) {
+			if (gamePhase == 3 || getPlayers(false).length == 0) {
+				endGame(channelID);
+			}
 		} else {
 			bot.editMessage({
 				channelID: channelID,
