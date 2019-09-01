@@ -110,7 +110,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 				}
             break;
 			case 'join':
-				if (checkPhase(1, channelID) && channelID = msgID[6]) {
+				if (checkPhase(1, channelID) && channelID == msgID[6]) {
 					players[userID] = [];
 					scores.push(0);
 					unos.push(0);
