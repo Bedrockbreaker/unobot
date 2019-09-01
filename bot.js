@@ -620,7 +620,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 									}
 									
 									if (players[userID] != players[playerList[currentPlayer]]) {
-										var action = "\n<@" + userID + "> stacked a " + idToName(card);
+										var action = "\n<@" + userID + "> jumped in with a " + idToName(card);
 									} else {
 										var action = "\n<@" + userID + "> discarded a " + idToName(card);
 									}
@@ -672,7 +672,8 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 												players[userID] = players[color];
 												players[color] = temp;
 												
-												console.log(players);
+												action += ". <@" + userID + "> swapped hands with <@" + color + ">";
+												//console.log(players);
 												if (currentPlayer != color) {
 													bot.sendMessage({
 														to: color,
