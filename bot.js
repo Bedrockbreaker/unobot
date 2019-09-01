@@ -77,7 +77,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
             break;
 			case 'quit':
 				if (gamePhase) {
-					if (endUser(userID, channelID)) {
+					if (endUser(userID, channelID, true)) {
 						bot.sendMessage({
 							to: channelID,
 							message: "Bye <@" + userID + ">!"
@@ -256,7 +256,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 					if (playerList[0] == userID) {
 						args[0] = args[0].replace("!","").substring(2);
 						args[0] = args[0].substring(0,args[0].length-1);
-						if (endUser(args[0], channelID)) {
+						if (endUser(args[0], channelID, true)) {
 							bot.sendMessage({
 								to: channelID,
 								message: "Kicked <@" + args[0] + "> from the game"
@@ -557,7 +557,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 											}
 											for (i = scores.length; i >= 0; i--) {
 												if (scores[i] >= 500 && i != minScoreIndex && scores[i] != scores[minScoreIndex]) {
-													endUser(playerList[i],channelID);
+													endUser(playerList[i],channelID,false);
 													eliminees.push("<@" + playerList[i] + ">, ");
 													scores.splice(i,1);
 												}
@@ -997,7 +997,7 @@ function endGame(channelID) {
 	});
 }
 
-function endUser(userID, channelID) {
+function endUser(userID, channelID, goNext) {
 	if (players[userID]) {
 		playerList = getPlayers(false);
 		
@@ -1013,6 +1013,9 @@ function endUser(userID, channelID) {
 				messageID: msgID[0],
 				message: "Players: <@" + playerList.join(">, <@") + ">"
 			});
+		}
+		if (goNext) {
+			nextPlayer();
 		}
 		return true;
 	}
