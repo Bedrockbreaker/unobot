@@ -491,7 +491,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 									if (drawNum) {
 										action += ". **" + drawNum + " cards stacked to draw**";
 									}
-									newMsg[0].fields[0].value = "It is currently <@" + playerList[currentPlayer] + ">'s turn. Type u!<cardID> to discard a card!\nOr type 'u!<cardID> <color>' to discard a wild." + extraRuleText + "\n<@" + playerList[k] + "> drew 2 cards from falsely calling 'u!uno'" + action;
+									newMsg[0].fields[0].value = "It is currently <@" + playerList[currentPlayer] + ">'s turn. Type u!<cardID> to discard a card!\nOr type 'u!<cardID> <color>' to discard a wild." + extraRuleText + "\n<@" + userID + "> drew 2 cards from falsely calling 'u!uno'" + action;
 									newMsg[0].footer.text = getReadableScoreCards();
 									bot.editMessage({
 										channelID: channelID,
