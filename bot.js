@@ -1,5 +1,6 @@
 var Discord = require('discord.io');
 var logger = require('winston');
+var ytdl = require("ytdl-core");
 
 var fs = require("fs");
 
