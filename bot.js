@@ -51,7 +51,7 @@ bot.on('ready', function (evt) {
 });
 
 bot.on('message', function (user, userID, channelID, message, evt) {
-    //It will listen for messages that will start with `u!`
+    //It will listen for messages that will start with "u!"
     if (message.substring(0, 2) == 'u!') {
         var args = message.substring(2).split(' ');
         var cmd = args[0];
@@ -365,7 +365,6 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 							}
 							
 							resetGame(channelID, playerList);
-							timer = setTimeout(forceEndTurn, rules[7]);
 						}
 						
 						getRules();
@@ -1407,6 +1406,7 @@ function resetGame(channelID, playerList) {
 			msgID[4] = response.channel_id;
 		});
 	});
+	timer = setTimeout(forceEndTurn, rules[7]);
 }
 
 function lastCard(channelID, userID, gameEnd) {
@@ -1460,7 +1460,6 @@ function getReadableScoreCards() {
 }
 
 function forceEndTurn() {
-	console.log("Why am I executing?");
 	var playerList = getPlayers(false);
 	var prevAmount = players[playerList[currentPlayer]].length;
 	var cards = draw(drawNum);
@@ -1472,7 +1471,7 @@ function forceEndTurn() {
 		message: getReadableHand(players[playerList[currentPlayer]])
 	});
 	
-	var offender = playerList(currentPlayer);
+	var offender = playerList[currentPlayer];
 	nextPlayer();
 	bot.getMessage({
 		channelID: msgID[4],
