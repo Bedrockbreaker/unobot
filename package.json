@@ -5,11 +5,13 @@
   "main": "bot.js",
   "author": "_Bedrockbreaker_",
   "scripts": {
-	"start": "node bot.js"
+    "start": "node bot.js"
   },
   "dependencies": {
     "discord.io": "https://github.com/woor/discord.io/tarball/gateway_v6",
+    "ffmpeg": "0.0.4",
+    "request": "2.81.0",
     "winston": "^3.2.1",
-	"request": "2.81.0"
+    "ytdl-core": "^0.29.5"
   }
 }
