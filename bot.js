@@ -1525,3 +1525,8 @@ function forceEndTurn() {
 	drawNum = 0;
 	reEvalUnos();
 }
+
+async function getSongInfo(url) {
+	var info = await ytdl.getInfo(url);
+	console.log("INFOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO:" + info);
+}
