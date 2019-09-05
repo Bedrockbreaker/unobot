@@ -365,6 +365,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 							}
 							
 							resetGame(channelID, playerList);
+							timer = setTimeout(forceEndTurn, rules[7]);
 						}
 						
 						getRules();
