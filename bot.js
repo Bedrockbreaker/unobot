@@ -60,7 +60,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 		if (gamePhase == 3 && userID == getPlayers(false)[currentPlayer] && rules[7]) {
 			try {
 				clearTimeout(timer);
-			}
+			} catch {};
 			timer = setTimeout(forceEndTurn, rules[7]);
 		}
 		
