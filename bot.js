@@ -237,8 +237,8 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 										messageID: msgID[1]
 									}, function(err, response) {
 										var newMsg = response.embeds;
-										newMsg[0].fields[5].name = "Starting Number of Cards: " + rules[6];
-										newMsg[0].fields[5].value = "The number of cards dealt to each player at the beginning of a game.\nType \"u!rule cards <number>\" to change this.\nNumber of decks to be used: " + Math.ceil(getPlayers(false).length*rules[6]/28);
+										newMsg[0].fields[6].name = "Starting Number of Cards: " + rules[6];
+										newMsg[0].fields[6].value = "The number of cards dealt to each player at the beginning of a game.\nType \"u!rule cards <number>\" to change this.\nNumber of decks to be used: " + Math.ceil(getPlayers(false).length*rules[6]/28);
 										bot.editMessage({
 											channelID: channelID,
 											messageID: response.id,
@@ -262,7 +262,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 										messageID: msgID[1]
 									}, function(err, response) {
 										var newMsg = response.embeds;
-										newMsg[0].fields[6].name = "Turn Time Limit: " + rules[7] + " seconds";
+										newMsg[0].fields[7].name = "Turn Time Limit: " + rules[7] + " seconds";
 										bot.editMessage({
 											channelID: channelID,
 											messageID: response.id,
