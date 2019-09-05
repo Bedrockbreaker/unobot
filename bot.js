@@ -18,7 +18,7 @@ var msgID = [];
 var players = {};
 var scores = [0];
 var unos = [0];
-var rules = [false,false,false,false,false,false,7,30];
+var rules = [false,false,false,false,false,false,7,30,false];
 var currentPlayer = 0;
 
 var deck = [];
@@ -149,16 +149,36 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 				}
             break;
 			case 'join':
-				if (checkPhase(1, channelID) && channelID == msgID[6]) {
-					players[userID] = [];
+				if (gamePhase == 3 && rules[8]) {
+					players[userID] = draw(rules[6]);
 					scores.push(0);
 					unos.push(0);
 					nicks.push(evt.d.member.nick || evt.d.author.username);
-					bot.editMessage({
-						channelID: channelID,
-						messageID: msgID[0],
-						message: "Players: <@" + getPlayers(false).join(">, <@") + ">"
+					bot.getMessage({
+						channelID: msgID[4],
+						messageID: msgID[2]
+					}, function(err, response) {
+						var newMsg = response.embeds;
+						newMsg[0].footer.text = getReadableScoreCards();
+						bot.editMessage({
+							channelID: msgID[4],
+							messageID: response.id,
+							message: "",
+							embed: newMsg[0]
+						});
 					});
+				} else {
+					if (checkPhase(1, channelID) && channelID == msgID[6]) {
+						players[userID] = [];
+						scores.push(0);
+						unos.push(0);
+						nicks.push(evt.d.member.nick || evt.d.author.username);
+						bot.editMessage({
+							channelID: channelID,
+							messageID: msgID[0],
+							message: "Players: <@" + getPlayers(false).join(">, <@") + ">"
+						});
+					}
 				}
             break;
 			case "begin":
@@ -182,7 +202,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 											value: "Like above, but instead, loosing playes keep their own points. Players who reach 500 points are eliminated from the game. Last person to reach 500 points wins."
 										},
 										{
-											name: "Draw until you can discard - :small_red_triangle_down:",
+											name: "Draw Until you can Discard - :small_red_triangle_down:",
 											value: "If you can't discard a card, you keep drawing cards until you can."
 										},
 										{
@@ -204,6 +224,10 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 										{
 											name: "Turn Time Limit: " + rules[7] + " seconds",
 											value: "The maximum number of seconds a player can spend on their turn.\nType \"u!rule time <number>\" to change this.\n0 seconds means no time limit"
+										},
+										{
+											name: "Allow People to Join Mid-Game - :twisted_rightwards_arrows:",
+											value: "People joining mid-game will be dealt the starting number of cards\nAnd will start with 0 points, if that rule is on"
 										}
 									]
 								}
@@ -354,7 +378,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 						});
 						
 						async function getRules() {
-							var result = await getReactions(channelID, msgID[1], ["💯", "🔢","🔻","📚","🔄","⚡"]);
+							var result = await getReactions(channelID, msgID[1], ["💯", "🔢","🔻","📚","🔄","⚡","??"]);
 							for (i = 0; i < result.length; i++) {
 								for (j = 0; j < result[i].length; j++) {
 									if(result[i][j].id == playerList[0]) {
@@ -921,7 +945,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 		message = message.toLowerCase();
 		var ha = message.indexOf("ha");
 		var doTheHa = false;
-		var allowedChars = [" ", "~", "*", "_", "h", "a"];
+		var allowedChars = [" ", "~", "*", "_", "?", "!", ",", ".", "h", "a"];
 		if (message.length == 2) {
 			doTheHa = true;
 		}
@@ -1077,7 +1101,7 @@ function endGame(channelID) {
 	players = {};
 	scores = [0];
 	unos = [0];
-	rules = [false,false,false,false,false,false,7,30];
+	rules = [false,false,false,false,false,false,7,30,false];
 	currentPlayer = 0;
 
 	deck = [];
