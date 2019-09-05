@@ -31,6 +31,8 @@ var extraRuleText = "";
 var prevPlayer = 0;
 var nicks = [];
 
+var timer;
+
 // Configure logger settings
 logger.remove(logger.transports.Console);
 logger.add(new logger.transports.Console, {
@@ -53,8 +55,15 @@ bot.on('message', function (user, userID, channelID, message, evt) {
     if (message.substring(0, 2) == 'u!') {
         var args = message.substring(2).split(' ');
         var cmd = args[0];
-       
         args = args.splice(1);
+		
+		if (gamePhase == 3 && userID == getPlayers(false)[currentPlayer] && rules[7]) {
+			try {
+				clearTimeout(timer);
+			}
+			timer = setTimeout(forceEndTurn, rules[7]);
+		}
+		
         switch(cmd) {
             case 'startgame':
 				if(checkPhase(0, channelID)) {
@@ -1449,4 +1458,38 @@ function getReadableScoreCards() {
 	return list;
 }
 
-//Benjamin: 351141123949068300
+function forceEndTurn() {
+	var playerList = getPlayers(false);
+	var prevAmount = players[currentPlayer].length;
+	var cards = draw(drawNum);
+	for (i = 0; i < cards.length; i++) {
+		players[playerList[currentPlayer]].splice(players[playerList[currentPlayer]].length,0, cards[i]);
+	}
+	bot.sendMessage({
+		to: currentPlayer,
+		message: getReadableHand(players[playerList[currentPlayer]])
+	});
+	
+	var offender = playerList(currentPlayer);
+	nextPlayer();
+	bot.getMessage({
+		channelID: msgID[4],
+		messageID: msgID[2]
+	}, function(err, response) {
+		var newMsg = response.embeds;
+		var action = "";
+		if (discard[discard.length-1].substring(0,2) == "ww") {
+			action += ". **The color is " + idToName(currentColor) + "**"
+		}
+		newMsg[0].fields[0].value = "It is currently <@" + playerList[currentPlayer] + ">'s turn. Type u!<cardID> to discard a card!\nOr type 'u!<cardID> <color>' to discard a wild." + extraRuleText + "\n<@" + offender + "> drew " + (players[offender].length-prevAmount) + " cards from idling too long" + action;
+		newMsg[0].footer.text = getReadableScoreCards();
+		bot.editMessage({
+			channelID: msgID[4],
+			messageID: response.id,
+			message: "",
+			embed: newMsg[0]
+		});
+	});
+	drawNum = 0;
+	reEvalUnos();
+}
