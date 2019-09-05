@@ -382,7 +382,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 							for (i = 0; i < result.length; i++) {
 								for (j = 0; j < result[i].length; j++) {
 									if(result[i][j].id == playerList[0]) {
-										rules[i] = true;
+										rules[i+(i>5?2:0)] = true;
 										j = result[i].length;
 									}
 								}
@@ -1496,7 +1496,7 @@ function forceEndTurn() {
 		players[playerList[currentPlayer]].splice(players[playerList[currentPlayer]].length,0, cards[i]);
 	}
 	bot.sendMessage({
-		to: currentPlayer,
+		to: playerList[currentPlayer],
 		message: getReadableHand(players[playerList[currentPlayer]])
 	});
 	
