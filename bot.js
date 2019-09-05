@@ -234,7 +234,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 							}, function(err, response) {
 								msgID[1] = response.id;
 								msgID[5] = response.channel_id;
-								var emojis = ["💯","🔢","🔻","📚","🔄","⚡","??"];
+								var emojis = ["💯","🔢","🔻","📚","🔄","⚡","🔀"];
 								addReactions(channelID, response.id, emojis);
 							});
 						} else {
@@ -378,7 +378,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 						});
 						
 						async function getRules() {
-							var result = await getReactions(channelID, msgID[1], ["💯", "🔢","🔻","📚","🔄","⚡","??"]);
+							var result = await getReactions(channelID, msgID[1], ["💯", "🔢","🔻","📚","🔄","⚡","🔀"]);
 							for (i = 0; i < result.length; i++) {
 								for (j = 0; j < result[i].length; j++) {
 									if(result[i][j].id == playerList[0]) {
