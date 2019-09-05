@@ -1460,8 +1460,9 @@ function getReadableScoreCards() {
 }
 
 function forceEndTurn() {
+	console.log("Why am I executing?");
 	var playerList = getPlayers(false);
-	var prevAmount = players[currentPlayer].length;
+	var prevAmount = players[playerList[currentPlayer]].length;
 	var cards = draw(drawNum);
 	for (i = 0; i < cards.length; i++) {
 		players[playerList[currentPlayer]].splice(players[playerList[currentPlayer]].length,0, cards[i]);
