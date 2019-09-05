@@ -61,7 +61,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 			try {
 				clearTimeout(timer);
 			} catch {};
-			timer = setTimeout(forceEndTurn, rules[7]);
+			timer = setTimeout(forceEndTurn, rules[7]*1000);
 		}
 		
         switch(cmd) {
@@ -1406,7 +1406,7 @@ function resetGame(channelID, playerList) {
 			msgID[4] = response.channel_id;
 		});
 	});
-	timer = setTimeout(forceEndTurn, rules[7]);
+	timer = setTimeout(forceEndTurn, rules[7]*1000);
 }
 
 function lastCard(channelID, userID, gameEnd) {
@@ -1460,6 +1460,7 @@ function getReadableScoreCards() {
 }
 
 function forceEndTurn() {
+	console.log("Yeah, " + currentPlayer + " is lazy");
 	return;
 	var playerList = getPlayers(false);
 	var prevAmount = players[playerList[currentPlayer]].length;
