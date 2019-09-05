@@ -234,7 +234,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 							}, function(err, response) {
 								msgID[1] = response.id;
 								msgID[5] = response.channel_id;
-								var emojis = ["💯","🔢","🔻","📚","🔄","⚡"];
+								var emojis = ["💯","🔢","🔻","📚","🔄","⚡","??"];
 								addReactions(channelID, response.id, emojis);
 							});
 						} else {
