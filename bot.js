@@ -1528,5 +1528,5 @@ function forceEndTurn() {
 
 async function getSongInfo(url) {
 	var info = await ytdl.getInfo(url);
-	console.log("INFOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO:" + info.title);
+	console.log(info);
 }
