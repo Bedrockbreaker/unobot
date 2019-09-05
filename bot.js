@@ -1322,6 +1322,7 @@ function nextPlayer() {
 	} else {
 		currentPlayer = (currentPlayer - 1) < 0 ? playerList.length - 1 : currentPlayer - 1;
 	}
+	timer = setTimeout(forceEndTurn, rules[7]*1000);
 }
 
 function resetGame(channelID, playerList) {
