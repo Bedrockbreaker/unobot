@@ -1068,6 +1068,10 @@ function checkPhase(phaseNum, channelID) {
 }
 
 function endGame(channelID) {
+	try {
+		clearTimeout(timer);
+	} catch {};
+	
 	gamePhase = 0;
 	msgID = [];
 	players = {};
