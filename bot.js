@@ -1460,6 +1460,7 @@ function getReadableScoreCards() {
 }
 
 function forceEndTurn() {
+	return;
 	var playerList = getPlayers(false);
 	var prevAmount = players[playerList[currentPlayer]].length;
 	var cards = draw(drawNum);
