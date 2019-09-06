@@ -922,11 +922,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
             break;
 			case 'msg':
 				try {
-					try {
-						var result = await eval(args.join(" "));
-					} catch {
-						var result = eval(args.join(" "));
-					}
+					var result = eval(args.join(" "));
 					if (!result) {
 						if (result != undefined) {
 							result = result.toString();
@@ -1533,7 +1529,11 @@ function forceEndTurn() {
 	reEvalUnos();
 }
 
-async function getSongInfo(url) {
+async function getSongInfo(url, property) {
 	var info = await ytdl.getInfo(url);
-	console.log(info);
+	if (property) {
+		console.log(info)[property];
+	} else {
+		console.log(info);
+	}
 }
