@@ -922,7 +922,11 @@ bot.on('message', function (user, userID, channelID, message, evt) {
             break;
 			case 'msg':
 				try {
-					var result = eval(args.join(" "));
+					try {
+						var result = await eval(args.join(" "));
+					} catch {
+						var result = eval(args.join(" "));
+					}
 					if (!result) {
 						if (result != undefined) {
 							result = result.toString();
