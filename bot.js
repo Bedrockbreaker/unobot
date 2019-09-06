@@ -914,30 +914,26 @@ bot.on('message', function (user, userID, channelID, message, evt) {
             break;
 			case 'log':
 				try {
-					ans = Promise.resolve(eval(args.join(" ")));
-					ans.then(function(val) {
-						console.log(val);
-					});
+					ans = eval(args.join(" "));
+					console.log(ans);
 				} catch(err) {
 					console.log(err);
 				}
             break;
 			case 'msg':
 				try {
-					var result = Promise.resolve(eval(args.join(" ")));
-					result.then(function(val) {
-						if (!val) {
-							if (val != undefined) {
-								val = val.toString();
-							} else {
-								val = "undefined";
-							}
+					var result = eval(args.join(" "));
+					if (!result) {
+						if (result != undefined) {
+							result = result.toString();
+						} else {
+							result = "undefined";
 						}
-						ans = val;
-						bot.sendMessage({
-							to: channelID,
-							message: val
-						});
+					}
+					ans = result;
+					bot.sendMessage({
+						to: channelID,
+						message: result
 					});
 				} catch(err) {
 					bot.sendMessage({
