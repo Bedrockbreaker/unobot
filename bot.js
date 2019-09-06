@@ -893,6 +893,9 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 					message: "Commands:\n'**!**': Non-uno related command prefix\n'**!lvlup**': Takes whatever text is after it and makes it ***~~__l o o k   c o o l__~~***\n'**!count**': Counts a specific number up\n'**!help**': This help message\n'**u!**': Uno-related command prefix\n'**u!startgame**': Starts an Uno game\n'**u!join**': Joins a recently started Uno game\n'**u!endgame**': Ends the entire game\n'**u!quit**': Quit an Uno game\n'**u!begin**': Start an Uno game"
 				});
 			break;
+			case "restartbot":
+				return foobar; //Crash the bot, which should auto-restart.
+			break;
             // Just add any case commands if you want to..
          }
      }
@@ -911,26 +914,30 @@ bot.on('message', function (user, userID, channelID, message, evt) {
             break;
 			case 'log':
 				try {
-					ans = eval(args.join(" "));
-					console.log(ans);
+					ans = Promise.resolve(eval(args.join(" ")));
+					ans.then(function(val) {
+						console.log(val);
+					});
 				} catch(err) {
 					console.log(err);
 				}
             break;
 			case 'msg':
 				try {
-					var result = eval(args.join(" "));
-					if (!result) {
-						if (result != undefined) {
-							result = result.toString();
-						} else {
-							result = "undefined";
+					var result = Promise.resolve(eval(args.join(" ")));
+					result.then(function(val) {
+						if (!val) {
+							if (val != undefined) {
+								val = val.toString();
+							} else {
+								val = "undefined";
+							}
 						}
-					}
-					ans = result;
-					bot.sendMessage({
-						to: channelID,
-						message: result
+						ans = val;
+						bot.sendMessage({
+							to: channelID,
+							message: val
+						});
 					});
 				} catch(err) {
 					bot.sendMessage({
