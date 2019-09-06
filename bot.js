@@ -1532,7 +1532,7 @@ function forceEndTurn() {
 async function getSongInfo(url, property) {
 	var info = await ytdl.getInfo(url);
 	if (property) {
-		console.log(info)[property];
+		console.log(info[property]);
 	} else {
 		console.log(info);
 	}
