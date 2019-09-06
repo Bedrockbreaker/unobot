@@ -1,7 +1,6 @@
 var Discord = require('discord.io');
 var logger = require('winston');
 var ytdl = require("ytdl-core");
-var ffmpeg = require("ffmpeg-static");
 
 var fs = require("fs");
 
@@ -1355,6 +1354,9 @@ function nextPlayer() {
 	} else {
 		currentPlayer = (currentPlayer - 1) < 0 ? playerList.length - 1 : currentPlayer - 1;
 	}
+	try {
+		clearTimeout(timer);
+	} catch{}
 	timer = setTimeout(forceEndTurn, rules[7]*1000);
 }
 
@@ -1440,6 +1442,9 @@ function resetGame(channelID, playerList) {
 			msgID[4] = response.channel_id;
 		});
 	});
+	try {
+		clearTimeout(timer);
+	} catch{};
 	timer = setTimeout(forceEndTurn, rules[7]*1000);
 }
 
