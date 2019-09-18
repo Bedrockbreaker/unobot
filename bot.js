@@ -58,12 +58,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
         var cmd = args[0];
         args = args.splice(1);
 		
-		if (gamePhase == 3 && userID == getPlayers(false)[currentPlayer] && rules[7]) {
-			try {
-				clearTimeout(timer);
-			} catch {};
-			timer = setTimeout(forceEndTurn, rules[7]*1000);
-		}
+		setTimeLimit(userID);
 		
         switch(cmd) {
             case 'startgame':
@@ -1354,10 +1349,7 @@ function nextPlayer() {
 	} else {
 		currentPlayer = (currentPlayer - 1) < 0 ? playerList.length - 1 : currentPlayer - 1;
 	}
-	try {
-		clearTimeout(timer);
-	} catch{}
-	timer = setTimeout(forceEndTurn, rules[7]*1000);
+	setTimeLimit();
 }
 
 function resetGame(channelID, playerList) {
@@ -1442,10 +1434,7 @@ function resetGame(channelID, playerList) {
 			msgID[4] = response.channel_id;
 		});
 	});
-	try {
-		clearTimeout(timer);
-	} catch{};
-	timer = setTimeout(forceEndTurn, rules[7]*1000);
+	setTimeLimit();
 }
 
 function lastCard(channelID, userID, gameEnd) {
@@ -1541,5 +1530,17 @@ async function getSongInfo(url, property) {
 		console.log(info[property]);
 	} else {
 		console.log(info);
+	}
+}
+
+function setTimeLimit(user) {
+	if (user != undefined && user != getPlayers(false)[currentPlayer]) {
+		return;
+	}
+	if (gamePhase == 3 && rules[7]) {
+		try {
+			clearTimeout(timer);
+		} catch {};
+		timer = setTimeout(forceEndTurn, rules[7]*1000);
 	}
 }
