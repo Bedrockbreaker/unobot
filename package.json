@@ -1,6 +1,6 @@
 {
   "name": "uno-bot",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "plays uno",
   "main": "bot.js",
   "author": "_Bedrockbreaker_",
@@ -8,11 +8,13 @@
     "start": "node bot.js"
   },
   "dependencies": {
-    "discord.io": "https://github.com/woor/discord.io/tarball/gateway_v6",
+    "discord.js": "^11.5.1",
     "ffmpeg": "0.0.4",
-    "ffmpeg-static": "^2.6.0",
+    "node-opus": "^0.3.2",
+    "nodemon": "^1.19.2",
     "request": "2.81.0",
+    "simple-youtube-api": "^5.2.1",
     "winston": "^3.2.1",
-    "ytdl-core": "^0.29.5"
+    "ytdl-core": "^0.29.7"
   }
 }
