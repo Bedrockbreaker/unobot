@@ -1,8 +1,8 @@
 const Discord = require("discord.js");
-const ytdl = require("ytdl-core");
-const YouTube = require("simple-youtube-api");
+//const ytdl = require("ytdl-core");
+//const YouTube = require("simple-youtube-api");
 const bot = new Discord.Client();
-const ytapi = new YouTube(process.env.ytoken);
+//const ytapi = new YouTube(process.env.ytoken);
 
 var ans = null;
 
@@ -133,6 +133,7 @@ bot.on("message", async msg => {
 				channel.send("Shuffled queue");
 				break;
 			case "seek":
+				return channel.send("This command is currently WIP!");
 				if (!serverQueue) return channel.send("The silence is infinite -- the silence is constant");
 				serverQueue.connection.dispatcher.time = Math.floor(Number(args[1])*1000);
 				channel.send("Skipped to: " + Math.floor(Number(args[1])) + " seconds!");
