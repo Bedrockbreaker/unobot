@@ -1,146 +1,189 @@
-const Discord = require("discord.js");
-//const ytdl = require("ytdl-core");
-//const YouTube = require("simple-youtube-api");
+﻿const Discord = require("discord.js");
+//const Keyv = require("keyv");
+const EH = require("./eventHandler");
+const uno = require("./uno.js");
 const bot = new Discord.Client();
-//const ytapi = new YouTube(process.env.ytoken);
+//const event = EH.event;
+const game = EH.emitter;
+const resetTimeLimit = EH.timeLimit;
+/*
+const db = eventHandler.db;
+let dbGet = eventHandler.dbGet;
+let dbSet = eventHandler.dbSet;
+*/
+let ans = null;
+// Load base card games
+uno.load();
 
-var ans = null;
-
-const queue = new Map();
+const globalGames = new Map();
 
 bot.on("warn", console.warn);
 bot.on("error", console.error);
-bot.on("ready", () => console.log("Logged in as " + bot.user.tag));
+bot.on("ready", () => console.log(`Logged in as ${bot.user.tag}`));
+//keyv.on("error", console.error);
 
 bot.on("message", async msg => {
+    if (msg.guild === null) return;
 	const args = msg.content.split(" ");
 	const channel = msg.channel;
-	const user = msg.author;
-	const serverQueue = queue.get(msg.guild.id);
+	const member = msg.member;
+	const guild = msg.guild;
+    const serverGame = globalGames.get(guild.id);
+    const isLeader = serverGame ? member.id === Object.keys(serverGame.players).find(player => serverGame.players[player].isLeader) : false;
 	
-	if (msg.content[0] === "!") {
-		switch(args[0].substr(1)) {
-			case "p":
-			case "play":
-				const VC = msg.member.voiceChannel;
-				
-				if (!VC) return channel.send("Join a Voice Channel first!");
-				const perms = VC.permissionsFor(msg.client.user);
-				if (!perms.has("CONNECT")) return channel.send("I don't have the permissions to join that voice channel!");
-				if (!perms.has("SPEAK")) return channel.send("I don't have the permissions to speak in that voice channel!");
-				if (args.length === 1) return channel.send("Usage: `!<play|p> (URL) <shuffle|s>` or `!<play|p> (Search terms) <shuffle|s>`\nWill search youtube with those search terms and retrieve the first match or will use the URL\nThen plays the audio from that video in your current voice channel.\nSpecify with the 'shuffle' or 's' argument to shuffle the queue afterwards.");
-				const newUrl = args[1].replace(/<(.+)>/g, "$1"); // replaces the '<' and '>' in the link
-				
-				if (newUrl.match(/^https?:\/\/(www.youtube.com|youtube.com)\/playlist(.*)$/)) {
-					const playlist = await ytapi.getPlaylist(newUrl);
-					const videos = await playlist.getVideos();
-					for (const video of Object.values(videos)) {
-						const video2 = await ytapi.getVideoByID(video.id);
-						await addVideo(video2, msg, VC, true);
-					}
-					channel.send("`" + playlist.title + "` has been added to the queue");
-				} else {
-					try {
-						var video = await ytapi.getVideo(newUrl);
-					} catch(err) {
-						try {
-							var searchResults = await ytapi.searchVideos(args.splice(1).join(" "), 1);
-							var video = await ytapi.getVideoByID(searchResults[0].id);
-						} catch(err2) {
-							console.error(err2);
-							return channel.send("I can't find a video that matches those terms!");
-						}
-					}
-					return addVideo(video, msg, VC);
-				}
-				console.log(args[2]);
-				if (args.length > 2 && (args[2] === "shuffle" || args[2] === "s")) {
-					serverQueue.songs = [serverQueue.songs[0], shuffle(serverQueue.songs.splice(1, serverQueue.songs.length))].flat();
-					channel.send("Shuffled queue");
-				}
-				break;
-			case "stop":
-				if (!serverQueue) return channel.send("I can't stop silence!");
-				serverQueue.songs = [];
-				serverQueue.connection.dispatcher.end("User stopped song");
-				break;
-			case "skip":
-				if (!serverQueue) return channel.send("I can't skip silence!");
-				channel.send("Skipped: `" + serverQueue.songs[0].title + "`");
-				serverQueue.connection.dispatcher.end("User skipped song");
-				break;
-			case "song":
-				if (!serverQueue) return channel.send("Nothing!");
-				channel.send("Now Playing: `" + serverQueue.songs[0].title + "`\n<" + serverQueue.songs[0].url + ">\n" + duration(Math.floor(serverQueue.connection.dispatcher.time/1000), true) + " / " + duration(duration(serverQueue.songs[0].duration), true));
-				break;
-			case "q":
-			case "queue":
-				if (!serverQueue) return channel.send("It's empty!");
-				const qDuration = serverQueue.songs.map(song => duration(song.duration)).reduce((acc, val) => acc+val);
-				channel.send("Queue: (Length: " + duration(qDuration, true) + ")\n`- " + serverQueue.songs.map(song => song.title).join("\n- ") + "`");
-				break;
-			case "vol":
-			case "volume":
-				if (!serverQueue) return channel.send("I can't set the volume of silence!");
-				if (!args.length > 1) return channel.send("Current volume: " + serverQueue.volume*100);
-				if (isNaN(Number(args[1]))) return channel.send(args[1] + " is not a valid number! (range 0~200%)");
-				serverQueue.volume = Math.min(Math.max(args[1],0), 200)/100;
-				serverQueue.connection.dispatcher.setVolumeLogarithmic(serverQueue.volume);
-				channel.send("Set the volume to: " + Math.round(serverQueue.volume*100));
-				break;
-			case "rem":
-			case "remove":
-				if (!serverQueue) return channel.send("I can't remove silence!");
-				if (args.length === 1) return channel.send("Usage `!<remove|rem> (any words to match in the song title)`\nRemoves the first song which contains those words");
-				const removedSong = serverQueue.songs.findIndex(song => song.title.toLowerCase().includes(args.splice(1).join(" ").toLowerCase()));
-				if (!(removedSong+1)) return channel.send("I couldn't find a match for that!");
-				channel.send("Removed `" + serverQueue.songs[removedSong].title + "` from the queue");
-				if (!removedSong) return serverQueue.connection.dispatcher.end("User removed video");
-				serverQueue.songs.splice(removedSong, 1);
-				break;
-			case "pause":
-				if (!serverQueue || !serverQueue.playing) return channel.send("I can't pause silence!");
-				serverQueue.playing = false;
-				serverQueue.connection.dispatcher.pause();
-				if (Math.floor(Math.random()*1000)) return channel.send("Paused the song");
-				channel.send("i guess you like the void of silence filling your soul");
-				break;
-			case "resume":
-				if (!serverQueue || serverQueue.playing) return channel.send("I can't resume silence!");
-				serverQueue.playing = true;
-				serverQueue.connection.dispatcher.resume();
-				channel.send("Resumed the song");
-				break;
-			case "loop":
-				if (!serverQueue || (!serverQueue.loop && args.length === 1)) return channel.send("Usage: `!loop <single|all>`\nLoops the current song or the entire queue. Specify with neither to stop looping");
-				if (serverQueue.loop) {
-					serverQueue.loop = 0;
-					channel.send("Stopped looping!");
-				} else {
-					if (!(args[1] === "single" || args[1] === "all")) return channel.send("Usage: `!loop <single|all>`\nLoops the current song or the entire queue. Specify with neither to stop looping");
-					if (args[1] === "single") {
-						serverQueue.loop = 1;
-						return channel.send("Looping `" + serverQueue.songs[0].title + "`");
-					} else {
-						serverQueue.loop = 2;
-						return channel.send ("Looping the entire queue");
-					}
-				}
-				break;
-			case "shuffle":
-				if (!serverQueue) return channel.send("I can't shuffle silence!");
-				serverQueue.songs = [serverQueue.songs[0], shuffle(serverQueue.songs.splice(1, serverQueue.songs.length))].flat();
-				channel.send("Shuffled queue");
-				break;
-			case "seek":
-				return channel.send("This command is currently WIP!");
-				if (!serverQueue) return channel.send("The silence is infinite -- the silence is constant");
-				serverQueue.connection.dispatcher.time = Math.floor(Number(args[1])*1000);
-				channel.send("Skipped to: " + Math.floor(Number(args[1])) + " seconds!");
-				break;
+    if (msg.content[0] === "!") {
+        if (serverGame && serverGame.meta.timeLimit > 0 && serverGame.meta.gamePhase > 2) resetTimeLimit(serverGame);
+        switch (args[0].substr(1)) {
+            case "help":
+                channel.send("https://github.com/Bedrockbreaker/unobot/wiki");
+                break;
+            case "p":
+            case "play":
+                if (serverGame) return channel.send("A game is already in progress!");
+                if (args.length === 1) return channel.send("Usage: `!(p|play) 𝘨𝘢𝘮𝘦`. Playable games: `uno`");
+                const games = ["uno"];
+                if (!games.includes(args[1])) return channel.send(`\`${args[1]}\` isn't a recognized game!`);
+                const gameConstruct = {
+                    meta: {
+                        title: args[1],
+                        channel: channel,
+                        msgs: [],
+                        actions: [], // String list of players' actions. (discarding, drawing, pretty much doing anything, etc.)
+                        gamePhase: 1, // Phase 1 is joining, 2 is rule deciding, 3+ is playing
+                        timeLimit: 0,
+                        accepting: true,
+                        update: true,
+                        ended: false, // Just a flag representing if the game has ended
+                        currentPlayer: "",
+                        rules: {},
+                        cardNames: {},
+                        cardImgs: {},
+                        traits: {}
+                    },
+                    piles: {}, // For every new pile, a traits object should be associated with it.
+                    players: {}
+                }
+                gameConstruct.players[member.id] = {
+                    member: member,
+                    cards: [],
+                    isLeader: true,
+                    index: 0, // index indicates the player order when playing a game, eg. player index 0 plays first.
+                    traits: {}
+                }
+                globalGames.set(guild.id, gameConstruct);
+                channel.send(`Who's joining \`${args[1]}\`? (Type \`!join\` to join. When finished, type \`!start\`)\nPlayers: <@${member.id}>`)
+                    .then(message => gameConstruct.meta.msgs[0] = message);
+                break;
+            case "j":
+            case "join":
+                if (!serverGame) return channel.send("Usage: `!(j|join)`. Joins a game currently accepting players. Type `!play` to start a game!");
+                if (serverGame.players.hasOwnProperty(member.id)) return channel.send("You're already in that game!");
+                if (!serverGame.meta.accepting) return channel.send("This game currently isn't accepting players!");
+                if (serverGame.meta.gamePhase > 2) return game.emit("join", serverGame, member); // Let the player join on a game-per-game basis
+                serverGame.players[member.id] = {
+                    member: member,
+                    cards: [],
+                    isLeader: false,
+                    index: Object.keys(serverGame.players).length,
+                    traits: {}
+                }
+                let formattedNames = `<@${Object.keys(serverGame.players).map(player => guild.members.get(player).id).join(">, <@")}>`
+                serverGame.meta.msgs[0].edit(`Who's joining \`${serverGame.meta.title}\`? (Type \`!join\` to join. When finished, type \`!start\`)\nPlayers: ${formattedNames}`);
+                break;
+            case "s":
+            case "start":
+                if (!serverGame) return channel.send("Usage: `!(s|start)`. Starts a game. Type `!play` to begin playing a game.");
+                if (!isLeader) return channel.send("Only the leader can start the game!");
+                if (serverGame.meta.gamePhase > 2) return channel.send("The game has already started!");
+                if (serverGame.meta.gamePhase === 1) {
+                    serverGame.meta.gamePhase = 2;
+                    serverGame.meta.rules = {};
+                    game.emit("setup", serverGame);
+                    if (Object.keys(serverGame.meta.rules).length) { // If there are custom rules...
+                        const rulesEmbed = new Discord.RichEmbed()
+                            .setTitle("What rules is this game being played by? (respond by submitting reaction emojis)")
+                            .setDescription(`When you are done changing the rules, type \`!start\`\nRule Descriptions: https://github.com/Bedrockbreaker/unobot/wiki/${serverGame.meta.title}#optional-house-rules`)
+                            .setColor(Math.floor(Math.random() * 16777215) + 1);
+                        for (rule in serverGame.meta.rules) {
+                            rulesEmbed.addField(serverGame.meta.rules[rule][0], serverGame.meta.rules[rule][1]);
+                        }
+                        serverGame.meta.channel.send(rulesEmbed)
+                            .then(message => {
+                                serverGame.meta.msgs[1] = message;
+                                addReaction(message, serverGame.meta.rules, 0);
+                            })
+                            .then(() => {
+                                serverGame.meta.ruleReactor = serverGame.meta.msgs[1].createReactionCollector((reaction, member) => {
+                                    return Object.values(serverGame.meta.rules).map(rule => rule[2]).includes(reaction.emoji.name) && member.id === Object.keys(serverGame.players)[0];
+                                });
+                                serverGame.meta.ruleReactor.on("end", collection => {
+                                    const ruleBools = Object.values(serverGame.meta.rules).map(rule => collection.map(reaction => reaction.emoji.name).includes(rule[2]));
+                                    for (i in ruleBools) {
+                                        serverGame.meta.rules[Object.keys(serverGame.meta.rules)[i]] = ruleBools[i];
+                                    }
+                                });
+                            });
+                        return;
+                    }
+                }
+                game.emit("start", serverGame);
+                break;
+            case "quit":
+                if (!serverGame) return channel.send("Usage: `!quit`. Quit from a game you have currently joined. Start a game with `!play`");
+                if (!serverGame.players.hasOwnProperty(member.id)) return channel.send("You can't quit from a game you haven't joined!");
+                serverGame.meta.gamePhase < 3 ? delete serverGame.players[member.id] : game.emit("quit", serverGame, member, true);
+                serverGame.meta.msgs[0].edit(`Who's joining \`${serverGame.meta.title}\`? (Type \`!join\` to join. When finished, type \`!start\`)\nPlayers: <@${Object.keys(serverGame.players).map(player => guild.members.get(player).id).join(">, <@")}>`);
+                if (Object.keys(serverGame.players).length !== 0) return channel.send(`Bye <@${member.id}>!`);
+                globalGames.delete(guild.id);
+                channel.send("Stopping game..");
+                break;
+            case "kick":
+                if (!serverGame) return channel.send("Usage: `!kick @𝘶𝘴𝘦𝘳`. Kicks the mentioned user from the current game. Start a game with `!play`");
+                if (!isLeader) return channel.send("Only the leader can kick people!");
+                const kickedUser = args[1].replace(/<@!?(\d*)>/, "$1");
+                if (!serverGame.players.hasOwnProperty(kickedUser)) return channel.send(`Unable to find ${args[1]}!tAre they in the game? Did you @ them?`);
+                serverGame.meta.gamePhase < 3 ? delete serverGame.players[kickedUser] : game.emit("quit", serverGame, member, true);
+                serverGame.meta.msgs[0].edit(`Who's joining \`${serverGame.meta.title}\`? (Type \`!join\` to join. When finished, type \`!start\`)\nPlayers: <@${Object.keys(serverGame.players).map(player => guild.members.get(player).id).join(">, <@")}>`);
+                if (Object.keys(serverGame.players).length !== 0) return channel.send(`Kicked <@${kickedUser}>`);
+                globalGames.delete(guild.id);
+                channel.send("Stopping game..");
+                break;
+            case "tl":
+            case "timeLimit":
+                if (!serverGame) return channel.send("Usage: `!(tl|timeLimit) 𝘯𝘶𝘮`. Changes the turn time limit to *num* seconds. If set to 0, the time limit is disabled. Start a game with `!play`");
+                if (!isLeader) return channel.send("Only the leader can change that!");
+                if (isNaN(Number(args[1]))) return channel.send(args[1] === undefined ? "Please specify a number!" : `\`${args[1]}\` is not a valid number!`);
+                serverGame.meta.timeLimit = Math.abs(Math.floor(Number(args[1])));
+                resetTimeLimit(serverGame);
+                channel.send(`Changed the turn time limit to ${serverGame.meta.timeLimit} seconds`);
+                break;
+            case "mgj":
+            case "midgameJoin":
+                if (!serverGame) return channel.send("Usage: `!midgameJoin`. Toggles the option to allow people to join in the middle of a game. Defaults to true. Start a game with `!play`");
+                if (!isLeader) return channel.send("Only the leader can change that!");
+                serverGame.meta.accepting = !serverGame.meta.accepting;
+                channel.send(`Currently ${serverGame.meta.accepting ? "A" : "Disa"}llowing people to join mid-game`);
+                break;
+            case "endGame":
+                if (!serverGame) return channel.send("Usage: `!endGame`. Abruptly ends the game. Start a game with `!play`");
+                if (!isLeader) return channel.send("Only the leader can abruptly end the game!");
+                globalGames.delete(guild.id);
+                channel.send("Stopping game..");
+                break;
+            default:
+                if (!serverGame) return;
+                 // Play the card/command, then after all mods/base are done with it, update the UI, if applicable.
+                serverGame.meta.update = false;
+                game.emit("discard", serverGame, args, member);
+                setImmediate(() => {
+                    if (serverGame.meta.update) { msg.delete(); game.emit("updateUI", serverGame); }
+                    serverGame.meta.update = true;
+                    setImmediate(() => { if (serverGame.meta.ended) globalGames.delete(guild.id) }); // Delayed further so that the UI can update one final time.
+                });
+                break;
 		}
 	}
-	if (user.id === "224285881383518208") {
+	if (member && member.id === "224285881383518208") {
 		switch(args[0]) {
 			case "log":
 				try {
@@ -158,98 +201,37 @@ bot.on("message", async msg => {
 				} catch(err) {
 					channel.send(err);
 				}
-				break;
+                break;
+            case "del":
+                if (isNaN(Number(args[1]))) return;
+                channel.fetchMessages({ limit: Number(args[1])+1 }).then(msgColl => channel.bulkDelete(msgColl).then(delMsgs => console.log(`deleted ${delMsgs.size-1} messages`)));
+                break;
 		}
 	}
-	if(msg.content.match(/([^a-z]|h|a|^|)ha([^a-z]|h|a|$)/i)) {
+    if (["614241181341188159", "449762523353186315", "563223150012268567"].includes(guild.id) && msg.content.match(/([^a-z]|h|a|^)ha([^a-z]|h|a|$)/i)) {
 		const ha = new Discord.RichEmbed()
 			.setColor(Math.floor(Math.random()*16777215)+1)
 			.setImage("https://cdn.discordapp.com/attachments/563223150569979909/612064679581450247/big_ha.png");
 		channel.send(ha);
-	}
-	return undefined;
+    }
 });
 
 bot.on("voiceStateUpdate", (oldMem, newMem) => {
-	if (newMem.voiceChannel != undefined && newMem.voiceChannel.id === "614241699820208164") {
-		newMem.guild.members.get(newMem.guild.members.map(member => [member.id, member.roles.get("615701598504747010")]).filter(memRole => memRole[1] != undefined)[0][0]).removeRole("615701598504747010", "New gay baby");
+    if (newMem.voiceChannel != undefined && newMem.voiceChannel.id === "614241699820208164") {
+		newMem.guild.members.get(newMem.guild.members.map(member => [member.id, member.roles.get("615701598504747010")]).filter(memRole => memRole[1] != undefined)[0][0]).removeRole("615701598504747010", "There exists a new gay baby");
 		newMem.addRole("615701598504747010", "Went AFK");
 	}
 });
 
-function playSong(msg, song) {
-	const serverQueue = queue.get(msg.guild.id);
-	
-	if (serverQueue.songs.length > 0) {
-		serverQueue.textChannel.send("Now Playing: `" + serverQueue.songs[0].title + "`\n" + serverQueue.songs[0].url);
-		const dispatcher = serverQueue.connection.playStream(ytdl(song.url))
-			.on("end", (reason) => {
-				console.log(reason);
-				if (!serverQueue.loop) {
-					serverQueue.songs.shift();
-				} else if (serverQueue.loop === 2) {
-					addVideo(serverQueue.songs.shift(), msg, serverQueue.voiceChannel);
-				}
-				playSong(msg, serverQueue.songs[0]);
-			})
-			.on("error", err => console.error("Error:" + err));
-		dispatcher.setVolumeLogarithmic(serverQueue.volume);
-	} else {
-		serverQueue.voiceChannel.leave();
-		queue.delete(msg.guild.id);
-		return;
-	}
+function addReaction(message, rules, index) {
+    if (index >= Object.keys(rules).length) return;
+    if (!Object.values(rules)[index][2]) return addReaction(message, rules, index + 1);
+    message.react(Object.values(rules)[index][2]).then(message2 => addReaction(message, rules, index + 1));
 }
 
-async function addVideo(video, msg, VC, playlist = false) {
-	const serverQueue = queue.get(msg.guild.id);
-	const song = {
-		title: video.title,
-		url: "https://www.youtube.com/watch?v=" + video.id,
-		id: video.id,
-		duration: [video.duration.hours, video.duration.minutes, video.duration.seconds]
-	}
-	if (!serverQueue) {
-		const queueConstruct = {
-			textChannel: msg.channel,
-			voiceChannel: VC,
-			connection: null,
-			songs: [],
-			volume: 1,
-			playing: true,
-			loop: 0
-		}
-		queue.set(msg.guild.id, queueConstruct);
-		queueConstruct.songs.push(song);
-		try {
-			var connection = await VC.join();
-			queueConstruct.connection = connection;
-			playSong(msg, queueConstruct.songs[0]);
-		} catch (err) {
-			queue.delete(msg.guild.id);
-			console.error(err);
-		}
-	} else {
-		serverQueue.songs.push(song);
-		if (playlist) return;
-		msg.channel.send("`" + song.title + "` has been added to the queue");
-	}
-}
-
-function duration(duration, formatted = false) {
-	if (!formatted) return duration[0]*3600+duration[1]*60+duration[2];
-	return (duration>=3600?Math.floor(duration/3600) + ":":"") + ((duration/60)%60<10?"0":"") + Math.floor((duration/60)%60) + ":" + (duration%60<10?"0":"") + (duration%60);
-}
-
-function shuffle(array) {
-	var i, j, k;
-	for(i = array.length - 1; i > 0; i--) {
-		j = Math.floor(Math.random() * (i + 1));
-		k = array[i];
-		array[i] = array[j];
-		array[j] = k;
-	}
-	return array;
+function exit() {
+    console.log("Manually exiting...");
+    process.exit(0);
 }
 
 bot.login(process.env.token);
