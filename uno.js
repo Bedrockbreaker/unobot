@@ -273,7 +273,6 @@ function begin() {
                         serverGame.meta.actions.unshift(`${member.displayName} won the round!`);
                         game.emit("start", serverGame);
                         break;
-
                     }
                     // Like above, though each player gets their own score
                     Object.values(serverGame.players).forEach(player => player.traits.score += player.cards.reduce((acc, card) => { acc + (Number(card[1]) ? Number(card[1]) : (card[0] === "w" ? 50 : 20)) }, 0));
@@ -305,10 +304,9 @@ function begin() {
                         if (card !== "w4") break;
                     case "d":
                         const drawNum = card === "w4" ? 4 : 2;
-                        serverGame.piles.draw.traits.drawNum += drawNum
+                        serverGame.piles.draw.traits.drawNum += drawNum;
                         if (serverGame.meta.rules.stacking) break;
                         game.emit("draw", serverGame, serverGame.meta.currentPlayer, 0, "");
-                        game.emit("nextPlayer", serverGame);
                         break;
                     case "s":
                         game.emit("nextPlayer", serverGame);
@@ -365,7 +363,8 @@ function begin() {
     game.on("nextPlayer", serverGame => {
         if (!serverGame || serverGame.meta.title !== "uno") return;
         serverGame.meta.traits.prevPlayer = serverGame.meta.currentPlayer; // Mainly in case they challenge a draw 4
-        serverGame.meta.currentPlayer = Object.values(serverGame.players).find(player => player.index === (Object.values(serverGame.players).find(player1 => player1.member.id === serverGame.meta.currentPlayer).index + 1) % Object.keys(serverGame.players).length).member.id;
+        const index = (Object.values(serverGame.players).find(player1 => player1.member.id === serverGame.meta.currentPlayer).index + (serverGame.meta.traits.clockwise ? 1 : -1)) % Object.keys(serverGame.players).length;
+        serverGame.meta.currentPlayer = Object.values(serverGame.players).find(player => player.index === index < 0 ? Object.keys(serverGame.players).length - 1 : index).member.id;
         resetTimeLimit(serverGame);
     });
 
