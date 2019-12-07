@@ -2,6 +2,7 @@
 //const Keyv = require("keyv");
 const EH = require("./eventHandler");
 const uno = require("./uno.js");
+const unoMod = require("./unoMod.js");
 const bot = new Discord.Client();
 //const event = EH.event;
 const game = EH.emitter;
@@ -14,12 +15,16 @@ let dbSet = eventHandler.dbSet;
 let ans = null;
 // Load base card games
 uno.load();
+unoMod.load();
 
 const globalGames = new Map();
 
 bot.on("warn", console.warn);
 bot.on("error", console.error);
-bot.on("ready", () => console.log(`Logged in as ${bot.user.tag}`));
+bot.on("ready", () => {
+    console.log(`Logged in as ${bot.user.tag}`);
+    bot.user.setPresence({ game: { name: "!help" } });
+});
 //keyv.on("error", console.error);
 
 bot.on("message", async msg => {
