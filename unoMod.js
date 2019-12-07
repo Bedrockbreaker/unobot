@@ -21,4 +21,4 @@ function begin() {
     });
 }
 
-module.exports.load = begin();
+module.exports.load = begin;
