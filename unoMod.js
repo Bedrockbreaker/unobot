@@ -11,7 +11,7 @@ function begin() {
         serverGame.meta.rules = {
             ...serverGame.meta.rules,
             ...{
-                sssix: ["666 - :six:", "If there are three sixes are discarded in a row,\nthe player to discard the last six must draw 13 cards", "😈"]
+                sssix: ["666 - :smiling_imp:", "If there are three sixes are discarded in a row,\nthe player to discard the last six must draw 13 cards", "😈"]
             }
         };
     });

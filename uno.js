@@ -362,9 +362,9 @@ function begin() {
 
     game.on("nextPlayer", serverGame => {
         if (!serverGame || serverGame.meta.title !== "uno") return;
-        serverGame.meta.traits.prevPlayer = serverGame.meta.currentPlayer; // Mainly in case they challenge a draw 4
+        serverGame.meta.traits.prevPlayer = serverGame.meta.currentPlayer;
         const index = (Object.values(serverGame.players).find(player1 => player1.member.id === serverGame.meta.currentPlayer).index + (serverGame.meta.traits.clockwise ? 1 : -1)) % Object.keys(serverGame.players).length;
-        serverGame.meta.currentPlayer = Object.values(serverGame.players).find(player => player.index === index < 0 ? Object.keys(serverGame.players).length - 1 : index).member.id;
+        serverGame.meta.currentPlayer = Object.values(serverGame.players).find(player => player.index === (index < 0 ? Object.keys(serverGame.players).length - 1 : index)).member.id;
         resetTimeLimit(serverGame);
     });
 
