@@ -250,10 +250,12 @@ function addReaction(message, rules, index) {
 }
 
 function exit() {
-    if (auth) return;
-    exited = true;
     console.log("Manually exiting...");
-    //process.exit(0);
+    try {
+        if (auth !== undefined) process.exit(0);
+    } catch {
+        exited = true;
+    }
 }
 
 bot.login(process.env.token);
