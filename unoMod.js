@@ -20,5 +20,4 @@ function begin() {
         if (serverGame && serverGame.meta.title === "uno" && serverGame.meta.rules.sssix && serverGame.piles.discard.cards.slice(0, 3).map(card => card[1]).every(card => card === "6")) game.emit("draw", serverGame, member.id, 13, " for placing down the third six in a row");
     });
 }
-
 module.exports.load = begin;

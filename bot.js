@@ -3,6 +3,8 @@
 const EH = require("./eventHandler");
 const uno = require("./uno.js");
 const unoMod = require("./unoMod.js");
+const exKit = require("./explodingKittens.js");
+const exKitEx = require("./explodingKittensExpansionPacks.js");
 const bot = new Discord.Client();
 //const event = EH.event;
 const game = EH.emitter;
@@ -13,9 +15,11 @@ let dbGet = eventHandler.dbGet;
 let dbSet = eventHandler.dbSet;
 */
 let ans = null;
+let exited = false;
 // Load base card games
 uno.load();
 unoMod.load();
+exKit.load();
 
 const globalGames = new Map();
 
@@ -28,7 +32,7 @@ bot.on("ready", () => {
 //keyv.on("error", console.error);
 
 bot.on("message", async msg => {
-    if (msg.guild === null) return;
+    if (exited || msg.guild === null) return;
 	const args = msg.content.split(" ");
 	const channel = msg.channel;
 	const member = msg.member;
@@ -45,12 +49,13 @@ bot.on("message", async msg => {
             case "p":
             case "play":
                 if (serverGame) return channel.send("A game is already in progress!");
-                if (args.length === 1) return channel.send("Usage: `!(p|play) 𝘨𝘢𝘮𝘦`. Playable games: `uno`");
-                const games = ["uno"];
-                if (!games.includes(args[1])) return channel.send(`\`${args[1]}\` isn't a recognized game!`);
+                if (args.length === 1) return channel.send("Usage: `!(p|play) 𝘨𝘢𝘮𝘦`. Playable games: `uno`, `explodingKittens`");
+                const games = ["uno", "exploding", "explodingkittens"];
+                if (!games.includes(args[1].toLowerCase())) return channel.send(`\`${args[1]}\` isn't a recognized game!`);
                 const gameConstruct = {
                     meta: {
-                        title: args[1],
+                        game: args[1],
+                        title: "",
                         channel: channel,
                         msgs: [],
                         actions: [], // String list of players' actions. (discarding, drawing, pretty much doing anything, etc.)
@@ -75,8 +80,18 @@ bot.on("message", async msg => {
                     index: 0, // index indicates the player order when playing a game, eg. player index 0 plays first.
                     traits: {}
                 }
+                switch (args[1]) {
+                    case "uno":
+                        gameConstruct.meta.title = "Uno";
+                        break;
+                    case "exploding":
+                    case "explodingkittens":
+                        gameConstruct.meta.title = "Exploding Kittens";
+                        gameConstruct.meta.game = "exKit";
+                        break;
+                }
                 globalGames.set(guild.id, gameConstruct);
-                channel.send(`Who's joining \`${args[1]}\`? (Type \`!join\` to join. When finished, type \`!start\`)\nPlayers: <@${member.id}>`)
+                channel.send(`Who's joining \`${gameConstruct.meta.title}\`? (Type \`!join\` to join. When finished, type \`!start\`)\nPlayers: <@${member.id}>`)
                     .then(message => gameConstruct.meta.msgs[0] = message);
                 break;
             case "j":
@@ -235,8 +250,10 @@ function addReaction(message, rules, index) {
 }
 
 function exit() {
+    if (auth) return;
+    exited = true;
     console.log("Manually exiting...");
-    process.exit(0);
+    //process.exit(0);
 }
 
 bot.login(process.env.token);

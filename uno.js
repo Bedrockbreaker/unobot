@@ -6,10 +6,9 @@ const resetTimeLimit = EH.timeLimit;
 
 function begin() {
     game.on("setup", serverGame => {
-        if (!serverGame || serverGame.meta.title !== "uno") return;
+        if (!serverGame || serverGame.meta.game !== "uno") return;
         serverGame.meta.traits.startingCards = 7;
         serverGame.meta.traits.matchFuncs = {};
-        serverGame.meta.traits.genericMatchFuncs = {};
         game.emit("getMatchFunctions", serverGame);
 
         // Setup all possible traits before adding rules, so that custom rules can use the numbers/info from the setup, e.g. number of decks used from starting cards.
@@ -29,7 +28,7 @@ function begin() {
     });
 
     game.on("start", serverGame => {
-        if (!serverGame || serverGame.meta.title !== "uno") return;
+        if (!serverGame || serverGame.meta.game !== "uno") return;
         if (Object.keys(serverGame.players).length < 2) return serverGame.meta.channel.send("Not enough players!");
         if (Object.keys(serverGame.meta.rules).length) serverGame.meta.ruleReactor.stop();
         serverGame.meta.gamePhase = 3;
@@ -92,7 +91,7 @@ function begin() {
 
     game.on("deckCreate", (serverGame, onlyPopulate) => {
         // Populate deck
-        if (!serverGame || serverGame.meta.title !== "uno") return;
+        if (!serverGame || serverGame.meta.game !== "uno") return;
         const colors = ["r", "g", "b", "y"];
         for (k = 0; k < Math.ceil(Object.keys(serverGame.players).length * serverGame.meta.traits.startingCards / 28); k++) {
             for (j in colors) {
@@ -184,7 +183,7 @@ function begin() {
     });
 
     game.on("getMatchFunctions", serverGame => {
-        if (!serverGame || serverGame.meta.title !== "uno") return;
+        if (!serverGame || serverGame.meta.game !== "uno") return;
         // Assign a card matching function with a unique id. To override, replace the base function.
         // Returns [canCardMatch, canCardStillMatchEvenIfOtherFunctionsReturnFalse]
         serverGame.meta.traits.matchFuncs.base = function canMatch(serverGame, card1, card2, args, member) {
@@ -203,7 +202,7 @@ function begin() {
     });
 
     game.on("discard", (serverGame, args, member) => {
-        if (!serverGame || serverGame.meta.title !== "uno" || !Object.keys(serverGame.players).includes(member.id)) return;
+        if (!serverGame || serverGame.meta.game !== "uno" || !Object.keys(serverGame.players).includes(member.id)) return;
         switch (args[0]) {
             case "!sC":
             case "!startingCards":
@@ -343,7 +342,7 @@ function begin() {
     });
 
     game.on("draw", (serverGame, playerID, numCards, reason) => {
-        if (!serverGame || serverGame.meta.title !== "uno") return;
+        if (!serverGame || serverGame.meta.game !== "uno") return;
         serverGame.players[playerID].traits.saidUno = false;
         // if numCards isn't specified, draw normally. (aka either forcefully draw or willingly draw)
         const given = numCards; // Does the player have to draw a number of cards other than normal?
@@ -361,7 +360,7 @@ function begin() {
     });
 
     game.on("nextPlayer", serverGame => {
-        if (!serverGame || serverGame.meta.title !== "uno") return;
+        if (!serverGame || serverGame.meta.game !== "uno") return;
         serverGame.meta.traits.prevPlayer = serverGame.meta.currentPlayer;
         const index = (Object.values(serverGame.players).find(player1 => player1.member.id === serverGame.meta.currentPlayer).index + (serverGame.meta.traits.clockwise ? 1 : -1)) % Object.keys(serverGame.players).length;
         serverGame.meta.currentPlayer = Object.values(serverGame.players).find(player => player.index === (index < 0 ? Object.keys(serverGame.players).length - 1 : index)).member.id;
@@ -369,14 +368,14 @@ function begin() {
     });
 
     game.on("timeLimit", serverGame => {
-        if (!serverGame || serverGame.meta.title !== "uno") return;
+        if (!serverGame || serverGame.meta.game !== "uno") return;
         game.emit("draw", serverGame, serverGame.meta.currentPlayer, 0, " due to taking too long on their turn");
         // TODO: end the game if everyone hasn't gone once in row.
         game.emit("nextPlayer", serverGame);
     });
 
     game.on("updateUI", serverGame => {
-        if (!serverGame || serverGame.meta.title !== "uno" || serverGame.meta.gamePhase < 3) return;
+        if (!serverGame || serverGame.meta.game !== "uno" || serverGame.meta.gamePhase < 3) return;
         let info = [];
         if (serverGame.piles.discard.cards[0][0] === "w" && serverGame.piles.discard.cards.length > 1) {
             let color = "";
@@ -410,7 +409,7 @@ function begin() {
     });
 
     game.on("join", (serverGame, member) => {
-        if (!serverGame || serverGame.meta.title !== "uno") return;
+        if (!serverGame || serverGame.meta.game !== "uno") return;
         serverGame.players[member.id] = {
             member: member,
             cards: [],
@@ -427,7 +426,7 @@ function begin() {
     });
 
     game.on("quit", (serverGame, member, generateMessage) => {
-        if (!serverGame || serverGame.meta.title !== "uno") return;
+        if (!serverGame || serverGame.meta.game !== "uno") return;
         serverGame.piles.draw.cards.concat(serverGame.players[member.id].cards);
         shuffle(serverGame.piles.draw.cards);
         delete serverGame.players[member.id];
