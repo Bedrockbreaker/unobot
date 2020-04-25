@@ -5,12 +5,6 @@ See [the wiki](https://github.com/Bedrockbreaker/unobot/wiki) for how to use
 
 ## Road Map
 
-### v3.0.0
-* Complete overhaul of internals
-* Moved to class-based system
-* Code is now much more readable and slightly more annotated
-* Temporarily removes house rules for Uno
-
 ### v3.1.0
 * Reimplementation of Uno house rules
 
