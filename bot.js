@@ -2,7 +2,6 @@
 //import http from "http";
 //import express from "express";
 import core from "./coreGame.js";
-import auth from "./auth.json";
 
 // Load built-in card games
 import baseUno from "./unoRefactored.js";
