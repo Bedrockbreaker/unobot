@@ -251,7 +251,7 @@ function addReaction(message, rules, index) {
 // Used when I use discord as a console. Allows me to disable the hosted bot temporarily, and use the dev bot instead.
 function exit() {
 	if (typeof auth === "undefined") {
-		exited != exited;
+		exited = !exited;
 		return exited ? "Manually exiting..." : "Coming back online!";
 	}
 	return "Don't worry, I'm still alive!";
