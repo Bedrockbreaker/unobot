@@ -1,7 +1,7 @@
 ﻿import Discord from "discord.js";
 //import http from "http";
 //import express from "express";
-import core from "./coreGame.js";
+import {Core, Player, Pile, Card} from "./core.js"; // Pile and Card are imported for console-use. They are not directly used in this file.
 
 // Load built-in card games
 import baseUno from "./unoRefactored.js";
@@ -33,7 +33,9 @@ bot.on("ready", () => {
 });
 
 bot.on("message", async msg => {
-	if (exited && !(msg.content.startsWith("log ") && msg.member.id === "224285881383518208")) return;
+	// TODO: update node
+	// guild?.id
+	if (exited && guild && guild.id === "614241181341188159" && (!msg.content.startsWith("log ") || !msg.member.id === "224285881383518208")) return;
 	// TODO: move some of these into the "if startswith('!')" so that not so many things are generated EACH message.
 	const args = msg.content.split(" ");
 	const channel = msg.channel;
@@ -42,7 +44,7 @@ bot.on("message", async msg => {
 	const globalPlayers = globalGames.get("players");
 	/**@type {?Discord.Guild} */
 	const guild = msg.guild || globalPlayers[member.id];
-	/**@type {core} */
+	/**@type {Core} */
 	const serverGame = guild ? globalGames.get(guild.id) : null;
 	// TODO: Update node
 	// TODO: allow discord admin to always be leaders.
@@ -61,7 +63,7 @@ bot.on("message", async msg => {
 				break;
 			case "select":
 				// TODO: select only the submissions that the member didn't submit.
-				channel.send(core.shuffle(submissions).pop());
+				channel.send(Core.shuffle(submissions).pop());
 				break;
 			case "help":
 				channel.send("https://github.com/Bedrockbreaker/unobot/wiki");
@@ -75,7 +77,7 @@ bot.on("message", async msg => {
 				let newGame;
 				switch (args[1].toLowerCase()) {
 					case "uno":
-						newGame = new baseUno(channel, member, {member: member, cards: [], isLeader: true, index: 0, traits: {}});
+						newGame = new baseUno(channel, member, new Player(member, [], true, 0, {}));
 						break;
 					case "exploding":
 					case "kittens":
@@ -106,11 +108,11 @@ bot.on("message", async msg => {
 				if (!serverGame) return channel.send("Usage: `!(s|start)`. Starts a game. Type `!play` to begin playing a game.");
 				if (!isLeader) return channel.send("Only the leader can start the game!");
 				if (serverGame.meta.phase >= 2) return channel.send("The game has already started!");
-				// TODO: move this into coreGame
+				// TODO: move this into Core
 				// TODO: add a voting system, keeping this as well. Default to leader only, but the leader may open it up to voting, or public voting (the entire server can vote, not just those in the game).
 				if (serverGame.meta.phase < 1) {
 					serverGame.meta.phase = 1;
-					serverGame.setup();
+					//serverGame.setup();
 					if (Object.keys(serverGame.meta.rules).length) { // If there are custom rules...
 						const rulesEmbed = new Discord.RichEmbed()
 							.setTitle("What rules is this game being played by?\n(respond by submitting reaction emojis)")
@@ -187,7 +189,7 @@ bot.on("message", async msg => {
 				break;
 			default:
 				if (!serverGame) return;
-				serverGame.discard([args[0].substring(1), ...args.slice(1)], member);
+				serverGame.discard([args[0].substring(1), ...args.slice(1)], member, channel);
 				delete globalPlayers[serverGame.meta.deletePlayer]; // Since most of the time deletePlayer is 0, this won't do anything. It just continues silently.
 				serverGame.meta.deletePlayer = 0;
 				if (serverGame.meta.ended) {
