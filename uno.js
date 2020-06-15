@@ -1,6 +1,5 @@
 ﻿import Discord from "discord.js";
 import {Core, Player, Pile, Card} from "./core.js";
-import unoMod from "./unoModRefactored.js";
 import links from "./card_images/uno cards/links.json";
 
 /** 
