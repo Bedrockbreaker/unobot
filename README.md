@@ -5,9 +5,6 @@ See [the wiki](https://github.com/Bedrockbreaker/unobot/wiki) for how to use
 
 ## Road Map
 
-### v3.1.0
-* Reimplementation of Uno house rules
-
 ### v3.2.0
 * Update to [discord.js](https://discord.js.org) v12.2.0 (latest as of 4/20/20)
 * Update to [node.js](https://nodejs.org/en/) v14.0.0 (latest as of 4/25/20)
