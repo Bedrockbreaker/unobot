@@ -96,9 +96,7 @@ class Core {
 		traits = traits || [];
 		if (typeof traits === "object" && typeof traits.length === "undefined") traits = Object.keys(traits).map(key => [key, traits[key].toString()]);
 		if (typeof traits === "string") traits = traits.split(",").map(trait => trait.split(":"));
-		// TODO: update node.js
-		// const tempFilter = cards.filter(card => card.id === cardID && traits.every(trait => card.traits[trait[0]]?.toString() === (trait[1] || "true")));
-		const tempFilter = cards.filter(card => card.id === cardID && traits.every(trait => card.traits.hasOwnProperty(trait[0]) && card.traits[trait[0]].toString() === (trait[1] || "true")));
+		const tempFilter = cards.filter(card => card.id === cardID && traits.every(trait => card.traits[trait[0]]?.toString() === (trait[1] || "true")));
 		return tempFilter.filter(card => {
 			return Object.keys(card.traits).every(trait => {
 				const mentionedTrait = traits.find(trait2 => trait2[0] === trait);
@@ -121,7 +119,7 @@ class Core {
 		if (players.length === 0) return;
 		const player = players.pop();
 		if (player.member.user.bot) return this.dealCards(players, sortFunction, colorFunction); // I use the bot to test things. Makes sure that this doesn't error
-		const hand = new Discord.RichEmbed()
+		const hand = new Discord.MessageEmbed()
 			.setTitle("Your Hand:")
 			.setDescription(Object.values(player.cards).map(card => `${card.id}: ${card.name}`).sort().join("\n"))
 			.setColor(Math.floor(Math.random() * 16777215));

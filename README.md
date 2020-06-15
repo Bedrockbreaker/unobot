@@ -5,11 +5,6 @@ See [the wiki](https://github.com/Bedrockbreaker/unobot/wiki) for how to use
 
 ## Road Map
 
-### v3.2.0
-* Update to [discord.js](https://discord.js.org) v12.2.0 (latest as of 4/20/20)
-* Update to [node.js](https://nodejs.org/en/) v14.0.0 (latest as of 4/25/20)
-* Move hosting site to [glitch.com](glitch.com)
-
 ### v3.3.0
 * Overhaul of display system
 * Instead of displaying a single card, will use [node-canvas](https://www.npmjs.com/package/canvas) to render a scene with a basic table background, user avatars, scores, etc.

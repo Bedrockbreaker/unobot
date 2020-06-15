@@ -103,8 +103,8 @@ export default class baseUno extends Core {
 				break;
 		}
 		Core.dealCards(Object.values(this.players));
-		if (!Object.values(this.players).reduce((acc, player) => {return acc+player.traits.points},0)) this.updateUI();
 		this.meta.channel.send(`Play order: ${Object.values(this.players).sort((player1, player2) => player1.index - player2.index).reduce((acc, player) => {return `${acc}${player.member.displayName}, `}, "").slice(0,-2)}\nGo to <https://github.com/Bedrockbreaker/unobot/wiki/Uno> to learn how to play.`);
+		if (!Object.values(this.players).reduce((acc, player) => {return acc+player.traits.points},0)) this.updateUI();
 		this.resetTimeLimit();
 		//}
 		//this.events.emit("start", Core.phases.END);
@@ -161,22 +161,18 @@ export default class baseUno extends Core {
 			const player = this.players[member.id];
 			member = player.member; // If the player sends a command through their DMs, the original "member" is actually a User.
 			switch(args[0]) {
-				// TODO: (maybe?) Move each of the cases into a different method, so that the event system doesn't seem as jank.
 				case "sc":
 				case "startingcards": {
 					//this.events.emit("discard_sc", Core.phases.START, args, player);
 					let message = "";
-					// TODO: update node
-					// !this.discard.sc?.cancelled
-					//if (this.discard.sc && !this.discard.sc.cancelled) {
+					//if (!this.discard.sc?.cancelled) {
 					if (!player.isLeader) {this.meta.channel.send("Only the leader can change that!"); break;}
 					if (isNaN(Number(args[1]))) {this.meta.channel.send(`${typeof args[1] === "undefined" ? "That" : `\`${args[1]}\``} is not a valid number!`); break;}
 					this.meta.traits.startingCards = Math.abs(Math.floor(Number(args[1])));
 					message = `:white_check_mark: Successfully changed the starting number of cards to ${this.meta.traits.startingCards}`;
 					//}
 					//this.events.emit("discard_sc", Core.phases.END, args, player, message);
-					// TODO: update node
-					/*if (this.discard.sc && !this.discard.sc.cancelled) */this.meta.channel.send(message);
+					/*if (this.discard.sc && !this.discard.sc?.cancelled) */this.meta.channel.send(message);
 					//this.discard.sc = {cancelled: false};
 					break;
 				}
@@ -188,15 +184,15 @@ export default class baseUno extends Core {
 					//if (this.discard.draw && !this.discard.draw.cancelled) {
 					if (this.meta.phase < 2 || this.meta.currentPlayer !== player || player.traits.renegeCard || this.piles.discard.cards[0].traits.owner) break; // renegeCard also happens to check if the player is trying to draw multiple times
 					drew = this.draw(player, this.piles.draw, this.meta.rules.stacking ? this.piles.draw.traits.drawNum : (this.meta.rules.contDraw ? 0 : 1));
+					player.traits.renegeCard = drew[drew.length-1];
 					if (this.meta.rules.stacking) {
-						if (this.piles.draw.traits.drawNum) this.nextPlayer();
+						if (this.piles.draw.traits.drawNum) this.nextPlayer(); // Also nulls the renege card
 						this.piles.draw.traits.drawNum = 0;
 					}
 					//}
 					//this.events.emit("discard_draw", Core.phases.END, args, player, drew);
 					//if (this.discard.draw && !this.discard.draw.cancelled) {
 					this.meta.actionHistory.push(`${member.displayName} drew ${drew.length} card${Core.plural(drew.length)}`);
-					player.traits.renegeCard = drew[drew.length-1];
 					this.checkPlayersOneCardNoUno();
 					this.updateUI();
 					//}
@@ -282,17 +278,13 @@ export default class baseUno extends Core {
 					let discardStyle = "discarded";
 					// !id.bool,num:2,string:yeet ...args
 					const card = Core.getCards(player.cards, args[0].split(".")[0], args[0].split(".")[1])[0];
-					if (!card) {
-						channel.send("Invalid move!");
-						break;
-					}
-					if (this.meta.rules.jumpIn && player !== this.meta.currentPlayer && card.id === this.piles.discard.cards[0].id) {
+					if (this.meta.rules.jumpIn && player !== this.meta.currentPlayer && card?.id === this.piles.discard.cards[0].id) {
 						member = player.member;
 						this.meta.currentPlayer = player;
 						discardStyle = "jumped in with";
 					}
 					if (this.meta.currentPlayer !== player) break;
-					if (!this.match(card, this.piles.discard.cards[0], args, player) || (this.meta.rules.stacking && this.piles.draw.traits.drawNum && (card.id.substring(1) !== "d" && card.id !== "w4"))) {
+					if (!card || !this.match(card, this.piles.discard.cards[0], args, player) || (this.meta.rules.stacking && this.piles.draw.traits.drawNum && (card.id.substring(1) !== "d" && card.id !== "w4"))) {
 						channel.send("Invalid move!");
 						break;
 					}
@@ -409,6 +401,7 @@ export default class baseUno extends Core {
 		player.traits.renegeCard = null;
 		const index = ((Object.values(this.players).find(player1 => player1 === this.meta.currentPlayer).index + (this.meta.traits.clockwise ? 1 : -1)) + Object.keys(this.players).length) % Object.keys(this.players).length;
 		this.meta.currentPlayer = Object.values(this.players).find(player2 => player2.index === index);
+		this.meta.currentPlayer.traits.renegeCard = null; // Just in case
 		this.resetTimeLimit();
 		//}
 		//this.events.emit("nextPlayer", Core.phases.END);
@@ -427,13 +420,13 @@ export default class baseUno extends Core {
 	}
 
 	updateUI() {
-		const display = new Discord.RichEmbed();
+		const display = new Discord.MessageEmbed();
 		//this.events.emit("updateUI", Core.phases.START, display);
 		//if (!this.updateUI.cancelled) {
 		const rightPlayer = Object.values(this.players).find(player => player.index === (this.meta.currentPlayer.index+1)%Object.keys(this.players).length);
 		const leftPlayer = Object.values(this.players).find(player => player.index === (this.meta.currentPlayer.index-1+Object.keys(this.players).length)%Object.keys(this.players).length);
 		display.setTitle(`Current Discarded Card: ${this.piles.discard.cards[0].name}`)
-			   .setThumbnail(this.meta.currentPlayer.member.user.avatarURL)
+			   .setThumbnail(this.meta.currentPlayer.member.user.displayAvatarURL())
 			   .setDescription(`It is currently ${this.meta.currentPlayer.member.displayName}'s turn${this.piles.discard.cards[0].id.startsWith("w") && this.piles.discard.cards.length > 1 ? `\n**Current Color: ${{r: "Red", g: "Green", b: "Blue", y: "Yellow"}[this.piles.discard.cards[0].traits.color]}**` : ""}${this.piles.discard.cards[0].traits.owner ? "\n**Type `!challenge` to challenge or `!next` to take the extra cards**" : ""}${this.meta.rules.stacking && this.piles.draw.traits.drawNum ? `\n**${this.piles.draw.traits.drawNum} Cards stacked to draw**` : ""}`)
 			   .addField(`${leftPlayer.member.displayName} ${this.meta.traits.clockwise ? `-> **${this.meta.currentPlayer.member.displayName}** ->` : `<- **${this.meta.currentPlayer.member.displayName}** <-`} ${rightPlayer.member.displayName}`, this.meta.actionHistory.slice(-2).reverse().join("\n"))
 			   .setColor(this.piles.discard.cards[0].id.startsWith("w") ? {r: "#D40000", g: "#2CA05A", b: "#2A7FFF", y: "#FFCC00", w: "#A100FF"}[this.piles.discard.cards[0].traits.color] : {6: "#71FF00", 5: "#BDFF00", 4: "#F1DF00", 3: "#FF9800", 2: "#FF4C00", 1: "#FF1400", 0: "#A100FF"}[Object.values(this.players).reduce((acc, player) => {return Math.min(acc, player.cards.length)}, 7).toString()] || "#26FF00")
@@ -490,10 +483,8 @@ export default class baseUno extends Core {
 		 */
 		let canMatch = [];
 		//this.events.emit("match", Core.phases.START, card1, card2, args, player, canMatch);
-		//TODO: update node
-		// args[1]?.replace(...)
 		/*if (!this.match.cancelled) */canMatch.push([card1.id.startsWith(card2.id.substring(0,1)) || card1.id.substring(1) === card2.id.substring(1) || card1.id.startsWith("w") || card1.id.startsWith(card2.traits.color) || card2.traits.color === "w",
-			(!player || !args || ((!player.traits.renegeCard || player.traits.renegeCard === card1) && (!this.meta.rules.zSCards || card1.id.substring(1) !== "7" || (args[1] && this.players[args[1].replace(/<@!?(\d*)>/, "$1")] && args[1].replace(/<@!?(\d*)>/, "$1") !== player.member.id)) && (!card1.id.startsWith("w") || ["red", "r", "green", "g", "blue", "b", "yellow", "y"].includes(args[1]))))]);
+			(!player || !args || ((!player.traits.renegeCard || player.traits.renegeCard === card1) && (!this.meta.rules.zSCards || card1.id.substring(1) !== "7" || (this.players[args[1]?.replace(/<@!?(\d*)>/, "$1")] && args[1]?.replace(/<@!?(\d*)>/, "$1") !== player.member.id)) && (!card1.id.startsWith("w") || ["red", "r", "green", "g", "blue", "b", "yellow", "y"].includes(args[1]))))]);
 		//this.events.emit("match", Core.phases.END, card1, card2, args, player, canMatch);
 		//this.match.cancelled = false;
 		return canMatch.some(match => match[0]) && canMatch.every(match => match[1]);

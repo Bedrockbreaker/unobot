@@ -1,15 +1,18 @@
 {
   "name": "uno-bot",
   "version": "3.1.0",
+  "engines": {
+    "node": "14.x"
+  },
   "description": "plays card games",
   "main": "bot.js",
   "type": "module",
   "author": "Bedrockbreaker",
   "scripts": {
-    "start": "node --experimental-modules bot.js"
+    "start": "node --experimental-json-modules bot.js"
   },
   "dependencies": {
-    "discord.js": "^11.5.1",
+    "discord.js": "^12.2.0",
     "nodemon": "^1.19.2",
     "request": "2.81.0",
     "winston": "^3.2.1"

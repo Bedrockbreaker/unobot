@@ -1,22 +1,10 @@
 ﻿import Discord from "discord.js";
-//import http from "http";
-//import express from "express";
 import {Core, Player, Pile, Card} from "./core.js"; // Pile and Card are imported for console-use. They are not directly used in this file.
 
 // Load built-in card games
 import baseUno from "./uno.js";
 //import baseExkit from "./baseExkit.js";
-/*
-const app = express();
-app.get("/", (req, res) => {
-	console.log(`${Date.now()}: Ping received`);
-	res.sendStatus(200);
-});
-app.listen(auth.port);
-setInterval(() => {
-	http.get(`http://${process.env.domain}.glitch.me`)
-}, 280000);
-*/
+
 const bot = new Discord.Client();
 let ans = null;
 let exited = false;
@@ -29,29 +17,22 @@ bot.on("warn", console.warn);
 bot.on("error", console.error);
 bot.on("ready", () => {
 	console.log(`Logged in as ${bot.user.tag}`);
-	bot.user.setPresence({ game: { name: "!help" } });
+	bot.user.setActivity("Card Games - !help", {type: "PLAYING"});
 });
 
 bot.on("message", async msg => {
-	// TODO: update node
-	// guild?.id
-	if (exited && guild && guild.id === "614241181341188159" && (!msg.content.startsWith("log ") || !msg.member.id === "224285881383518208")) return;
-	// TODO: move some of these into the "if startswith('!')" so that not so many things are generated EACH message.
+	if (exited && msg.guild?.id === "614241181341188159" && (!msg.content.startsWith("log ") || !msg.member.id === "224285881383518208")) return;
 	const args = msg.content.split(" ");
 	const channel = msg.channel;
-	/**@type {Discord.GuildMember|Discord.User} */
 	const member = msg.member || msg.author;
 	const globalPlayers = globalGames.get("players");
 	/**@type {?Discord.Guild} */
 	const guild = msg.guild || globalPlayers[member.id];
 	/**@type {Core} */
 	const serverGame = guild ? globalGames.get(guild.id) : null;
-	// TODO: Update node
-	// TODO: allow discord admin to always be leaders.
-	// const isLeader = serverGame?.players[member.id]?.isLeader;
-	const isLeader = serverGame ? member.id === Object.keys(serverGame.players).find(player => serverGame.players[player].isLeader) : false;
-
 	if (msg.content.startsWith("!")) {
+		// TODO: allow discord admin to always be leaders.
+		const isLeader = serverGame?.players[member.id]?.isLeader;
 		if (serverGame && serverGame.meta.timeLimit > 0 && serverGame.meta.phase > 2) serverGame.resetTimeLimit();
 		switch (args[0].substr(1).toLowerCase()) {
 			// TODO: reorganize the placement of each command in the code.
@@ -114,7 +95,7 @@ bot.on("message", async msg => {
 					serverGame.meta.phase = 1;
 					//serverGame.setup();
 					if (Object.keys(serverGame.meta.rules).length) { // If there are custom rules...
-						const rulesEmbed = new Discord.RichEmbed()
+						const rulesEmbed = new Discord.MessageEmbed()
 							.setTitle("What rules is this game being played by?\n(respond by submitting reaction emojis)")
 							.setDescription(`**When you are done changing the rules, type \`!start\`\nCommands for Playing: https://github.com/Bedrockbreaker/unobot/wiki/${serverGame.meta.title.replace(/ /g, "-")}**\n\n${Object.values(serverGame.meta.rules)[0][0]}`)
 							.setColor(Math.floor(Math.random() * 16777215) + 1);
@@ -222,13 +203,13 @@ bot.on("message", async msg => {
 				break;
 			case "del":
 				if (isNaN(Number(args[1]))) return;
-				channel.fetchMessages({ limit: Number(args[1])+1 }).then(msgColl => channel.bulkDelete(msgColl).then(delMsgs => console.log(`deleted ${delMsgs.size-1} messages`)));
+				channel.messages.fetch({ limit: Number(args[1])+1 }).then(msgColl => channel.bulkDelete(msgColl).then(delMsgs => console.log(`deleted ${delMsgs.size-1} messages`)));
 				break;
 		}
 	}
 	// Actively discourages the use of "lol," "lel," or "lul" in my own discord servers.
 	if (guild && ["614241181341188159", "449762523353186315", "563223150012268567", "582345451689213953"].includes(guild.id) && msg.content.match(/([^a-z]|o|e|u|^)l(o|e|u)l([^a-z]|o|e|u|$)/im)) {
-		const lol = new Discord.RichEmbed()
+		const lol = new Discord.MessageEmbed()
 			.setColor(Math.floor(Math.random()*16777215)+1)
 			.setImage("https://cdn.discordapp.com/attachments/563223150569979909/694432954318979122/lol.png");
 		channel.send(lol);
@@ -238,9 +219,9 @@ bot.on("message", async msg => {
 bot.on("voiceStateUpdate", (oldMem, newMem) => {
 	if (newMem.guild.id === "614241181341188159" && newMem.voiceChannel != undefined && newMem.voiceChannel.id === "614241699820208164") {
 		try {
-			newMem.guild.members.get(newMem.guild.members.map(member => [member.id, member.roles.get("615701598504747010")]).filter(memRole => memRole[1] != undefined)[0][0]).removeRole("615701598504747010", "There exists a new gay baby");
+			newMem.guild.members.cache.get(newMem.guild.members.cache.mapValues(member => [member.id, member.roles.cache.get("615701598504747010")]).filter(value => typeof value[1] !== "undefined")[0][0]).roles.remove("615701598504747010");
 		} catch {}
-		newMem.addRole("615701598504747010", "Went AFK");
+		newMem.member.roles.add("615701598504747010");
 	}
 });
 
