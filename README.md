@@ -5,14 +5,6 @@ See [the wiki](https://github.com/Bedrockbreaker/unobot/wiki) for how to use
 
 ## Road Map
 
-### v3.3.0
-* Overhaul of display system
-* Instead of displaying a single card, will use [node-canvas](https://www.npmjs.com/package/canvas) to render a scene with a basic table background, user avatars, scores, etc.
-* May include changing how individual players' hands are displayed in DMs
-
-### v3.4.0
-* Local storage for server-mods, enabling discord admins to create their own card game mods.
-
 ### v3.5.0
 * Exploding kittens + expansions
 
@@ -31,3 +23,7 @@ See [the wiki](https://github.com/Bedrockbreaker/unobot/wiki) for how to use
 ### v3.10.0
 * More board games/card games
 * Risk?
+
+## Future Map
+
+* Allow modding capabilities

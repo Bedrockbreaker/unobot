@@ -1,5 +1,6 @@
 //import events from "events";
 import Discord from "discord.js";
+import Canvas from "canvas";
 
 /**
  * Provides basic functionality for all games
@@ -10,7 +11,6 @@ class Core {
 	 * @param {string} title - The display name of the game
 	 * @param {Discord.GuildChannel} channel - The channel to send updates to
 	 * @param {number} [phase=0] - The current phase of the game. <1 is joining, [1,2) is setup, >=2 is playing
-	 * TODO: change currentPlayerID to a Player
 	 * @param {Player} [currentPlayer] - The current player, according to whose turn it is
 	 * @param {number} [timeLimit=0] - The time limit, in seconds, for each player on their turn. 0 means no limit
 	 * @param {string[]} [actionHistory=[]] - A history of players' actions
@@ -23,22 +23,45 @@ class Core {
 	constructor(title, channel, rules = {}, traits = {}, piles, players, timeLimit = 0, allowsMidGameJoin = true, phase = 0, currentPlayer, actionHistory = []) {
 		// If for whatever reason I need to get the class of a game: game#constructor.name
 		this.meta = {
+			/** The display name of the game */
 			title: title,
+			/** The channel to send updates to */
 			channel: channel,
+			/** The current phase of the game. <1 is joining, [1,2) is setup, >=2 is playing */
 			phase: phase,
+			/** The current player, according to whose turn it is */
 			currentPlayer: currentPlayer,
+			/** The time limit, in seconds, for each player on their turn. 0 means no limit */
 			timeLimit: timeLimit,
+			/** A history of players' actions */
 			actionHistory: actionHistory,
 			allowsMidGameJoin: allowsMidGameJoin,
+			/** Cache of images used for rendering 
+			 * @type {Object<string, CanvasImageSource>}
+			*/
+			images: {},
+			/** List of optional rules. Initialize with a string array, is later replaced with whether those rules are active or not */
 			rules: rules,
+			/** An object used to define any custom traits of the game */
 			traits: traits,
 			/** The member id of the player to remove from the game */
 			deletePlayer: "0",
 			/** Used to mark when the game has ended */
 			ended: false
 		}
+		/** Piles of cards the game contains */
 		this.piles = piles;
+		/** Players who are playing in the game */
 		this.players = players;
+
+		/** The canvas used to render scenes 
+		 * @type {HTMLCanvasElement}
+		*/
+		this.canvas = Canvas.createCanvas(850, 500);
+		/** The rendering context of the canvas 
+		 * @type {CanvasRenderingContext2D}
+		*/
+		this.ctx = this.canvas.getContext("2d");
 		/** The events emitter used for mods */
 		//this.events = new events.EventEmitter();
 	}
@@ -127,25 +150,31 @@ class Core {
 	}
 
 	/**
-	 * Registers the mods for a game
-	 * @virtual
+	 * Registers mods and caches images
 	 */
-	//setup() {}
-
-	/**
-	 * Generates a template player
-	 * @param {Discord.GuildMember} member - The member to generate a Player from
-	 * @returns {Player} The template Player
-	 */
-	genDefaultPlayer(member) {
-		return new Player(member, [], false, 0, {});
+	setup() {
+		return Canvas.loadImage("images/halo.png").then(image => {
+			this.meta.images.halo = image;
+		});
 	}
 
 	/**
 	 * Starts the game
-	 * @virtual
 	 */
-	start() {}
+	start() {
+		this.ctx.font = "40px Arial";
+		return new Promise(resolve => {
+			Canvas.loadImage("images/background.png").then(image => {
+				this.ctx.drawImage(image, 0, 0);
+				return this.drawStatic(Object.values(this.players).sort((player1, player2) => player1.index - player2.index));
+			}).then(() => {
+				this._canvas = Canvas.createCanvas(this.canvas.width, this.canvas.height);
+				this._ctx = this._canvas.getContext("2d");
+				this._ctx.drawImage(this.canvas, 0, 0);
+				resolve();
+			});
+		});
+	}
 
 	/**
 	 * The catch-all method for any unknown commands.
@@ -210,6 +239,19 @@ class Core {
 	}
 
 	/**
+	 * Render static images which don't change during the game onto the table
+	 * @param {Player[]} players - The list of players' avatars to render
+	 */
+	drawStatic(players) {
+		if (!players.length) return;
+		const pLength = Object.keys(this.players).length;
+		return Canvas.loadImage(players[0].member.user.displayAvatarURL({format: "png", size: 64})).then(image => {
+			this.ctx.drawImage(image, 300*Math.cos(2*Math.PI*players[0].index/pLength-Math.PI)+340, 200*Math.sin(2*Math.PI*players[0].index/pLength-Math.PI)+210, 80, 80);
+			return this.drawStatic(players.slice(1));
+		});
+	}
+
+	/**
 	 * Draws a number of cards from a pile, and inserts them into a Player's cards
 	 * @param {Player} player - The Player which gets the cards
 	 * @param {Pile} pile - The Pile to draw cards from
@@ -243,16 +285,18 @@ class Core {
 class Player {
 	/**
 	 * @param {Discord.GuildMember} member - The member associated with the player
-	 * @param {Card[]} cards - The list of cards in the player's posession
-	 * @param {boolean} isLeader - If the player is a leader/host over a game
-	 * @param {number} index - The index of the player in turn-order. 0 is first player
-	 * @param {Object<string, *>} traits - Any special traits the player may have
+	 * @param {?Card[]} cards - The list of cards in the player's posession
+	 * @param {?boolean} isLeader - If the player is a leader/host over a game
+	 * @param {?number} index - The index of the player in turn-order. 0 is first player
+	 * @param {?Object<Player, string>} knowledge - What specific knowledge this player knows, that others might not.
+	 * @param {?Object<string, *>} traits - Any special traits the player may have
 	 */
-	constructor(member, cards, isLeader, index, traits) {
+	constructor(member, cards = [], isLeader = false, index = 0, knowledge = {}, traits = {}) {
 		this.member = member;
 		this.cards = cards;
 		this.isLeader = isLeader;
 		this.index = index;
+		this.knowledge = knowledge;
 		this.traits = traits;
 	}
 }
@@ -263,10 +307,10 @@ class Player {
  */
 class Pile {
 	/**
-	 * @param {Card[]} cards - The cards in the pile
-	 * @param {Object<string, *>} traits - Any special traits the pile might have
+	 * @param {?Card[]} cards - The cards in the pile
+	 * @param {?Object<string, *>} traits - Any special traits the pile might have
 	 */
-	constructor(cards, traits) {
+	constructor(cards = [], traits = {}) {
 		this.cards = cards;
 		this.traits = traits;
 	}
@@ -279,9 +323,9 @@ class Pile {
 class Card {
 	/**
 	 * @param {string} id - The id of the card
-	 * @param {string} [name=id] - The Human-Readable name of the card
-	 * @param {string} [image=""] - The URL to the image of the card
-	 * @param {Object<string, *>} [traits={}] - Any special traits the card might have
+	 * @param {?string} [name=id] - The Human-Readable name of the card
+	 * @param {?string} image - The URL to the image of the card
+	 * @param {?Object<string, *>} traits - Any special traits the card might have
 	 */
 	constructor(id, name, image = "", traits = {}) {
 		this.id = id;

@@ -1,6 +1,6 @@
 {
   "name": "uno-bot",
-  "version": "3.1.0",
+  "version": "3.3.0",
   "engines": {
     "node": "14.x"
   },
@@ -9,11 +9,12 @@
   "type": "module",
   "author": "Bedrockbreaker",
   "scripts": {
-    "start": "node --experimental-json-modules bot.js"
+    "start": "node bot.js"
   },
   "dependencies": {
+    "canvas": "^2.6.1",
     "discord.js": "^12.2.0",
-    "nodemon": "^1.19.2",
+    "nodemon": "^2.0.4",
     "request": "2.81.0",
     "winston": "^3.2.1"
   }

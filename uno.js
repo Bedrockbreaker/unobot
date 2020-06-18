@@ -1,6 +1,6 @@
 ﻿import Discord from "discord.js";
+import Canvas from "canvas";
 import {Core, Player, Pile, Card} from "./core.js";
-import links from "./card_images/uno cards/links.json";
 
 /** 
  * The base implementation of uno
@@ -45,25 +45,22 @@ export default class baseUno extends Core {
 	});
 	*/
 
-	/*
 	setup() {
-		new unoMod(this);
+		return super.setup();
+		//new unoMod(this);
 		// Register server mods here...
-		this.events.emit("setup", Core.phases.START);
+		//this.events.emit("setup", Core.phases.START);
 		// if (!this.setup.cancelled) {}
-		this.events.emit("setup", Core.phases.END);
-		this.setup.cancelled = false;
+		//this.events.emit("setup", Core.phases.END);
+		//this.setup.cancelled = false;
 	}
-	*/
 
 	/**@param {Discord.GuildMember} member - The member to generate a Player from*/
 	genDefaultPlayer(member) {
-		const player = super.genDefaultPlayer(member);
 		//this.events.emit("genDefaultPlayer", Core.phases.START, player);
-		/*if (!this.genDefaultPlayer.cancelled)*/ player.traits = {renegeCard: null, oneCardNoUno: false, points: 0};
 		//this.events.emit("genDefaultPlayer", Core.phases.END, player);
 		//this.genDefaultPlayer.cancelled = false;
-		return player;
+		return new Player(member, [], false, 0, {}, {renegeCard: null, oneCardNoUno: false, points: 0});
 	}
 
 	/**@returns {void} */
@@ -74,8 +71,8 @@ export default class baseUno extends Core {
 		if (Object.keys(this.meta.rules).length) this.meta.ruleReactor.stop();
 		this.meta.phase = 2;
 		this.randomizePlayerOrder();
-		this.piles.draw = new Pile([], {});
-		this.piles.discard = new Pile([], {});
+		this.piles.draw = new Pile();
+		this.piles.discard = new Pile();
 		this.deckCreate(this.piles.draw);
 		this.piles.discard.cards.unshift(this.piles.draw.cards.shift());
 		Object.values(this.players).forEach(player => player.cards = this.piles.draw.cards.splice(0, this.meta.traits.startingCards));
@@ -103,8 +100,9 @@ export default class baseUno extends Core {
 				break;
 		}
 		Core.dealCards(Object.values(this.players));
+		this.ctx.fillStyle = "#FFFFFF";
 		this.meta.channel.send(`Play order: ${Object.values(this.players).sort((player1, player2) => player1.index - player2.index).reduce((acc, player) => {return `${acc}${player.member.displayName}, `}, "").slice(0,-2)}\nGo to <https://github.com/Bedrockbreaker/unobot/wiki/Uno> to learn how to play.`);
-		if (!Object.values(this.players).reduce((acc, player) => {return acc+player.traits.points},0)) this.updateUI();
+		if (!Object.values(this.players).reduce((acc, player) => {return acc+player.traits.points},0)) super.start().then(() => this.updateUI());
 		this.resetTimeLimit();
 		//}
 		//this.events.emit("start", Core.phases.END);
@@ -123,14 +121,15 @@ export default class baseUno extends Core {
 		if (/*!this.deckCreate.cancelled && */pile === this.piles.draw) {
 			const c = ["r","g","b","y"];
 			const colors = ["Red", "Green", "Blue", "Yellow"];
+			const url = "images/uno/";
 			for (let k = 0; k < Math.ceil(Object.keys(this.players).length * this.meta.traits.startingCards / 28); k++) {
 				for (let i = 0; i < 4; i++) {
-					cards.push(new Card("ww", "Wild", links.ww, {}), new Card("w4", "Wild Draw 4", links.w4, {}), new Card(`${c[i]}0`, `${colors[i]} 0`, links[`${c[i]}0`], {}),
-						new Card(`${c[i]}d`, `${colors[i]} Draw 2`, links[`${c[i]}d`], {}), new Card(`${c[i]}d`, `${colors[i]} Draw 2`, links[`${c[i]}d`], {}),
-						new Card(`${c[i]}s`, `${colors[i]} Skip`, links[`${c[i]}s`], {}), new Card(`${c[i]}s`, `${colors[i]} Skip`, links[`${c[i]}s`], {}),
-						new Card(`${c[i]}r`, `${colors[i]} Reverse`, links[`${c[i]}r`], {}), new Card(`${c[i]}r`, `${colors[i]} Reverse`, links[`${c[i]}r`], {}));
+					cards.push(new Card("ww", "Wild", `${url}ww.png`, {}), new Card("w4", "Wild Draw 4", `${url}w4.png`), new Card(`${c[i]}0`, `${colors[i]} 0`, `${url}${c[i]}0.png`),
+						new Card(`${c[i]}d`, `${colors[i]} Draw 2`, `${url}${c[i]}d.png`), new Card(`${c[i]}d`, `${colors[i]} Draw 2`, `${url}${c[i]}d.png`),
+						new Card(`${c[i]}s`, `${colors[i]} Skip`, `${url}${c[i]}s.png`), new Card(`${c[i]}s`, `${colors[i]} Skip`, `${url}${c[i]}s.png`),
+						new Card(`${c[i]}r`, `${colors[i]} Reverse`, `${url}${c[i]}r.png`), new Card(`${c[i]}r`, `${colors[i]} Reverse`, `${url}${c[i]}r.png`));
 					for (let j = 1; j < 10; j++) {
-						cards.push(new Card(`${c[i]}${j}`, `${colors[i]} ${j}`, links[`${c[i]}${j}`], {}), new Card(`${c[i]}${j}`, `${colors[i]} ${j}`, links[`${c[i]}${j}`], {}));
+						cards.push(new Card(`${c[i]}${j}`, `${colors[i]} ${j}`, `${url}${c[i]}${j}.png`), new Card(`${c[i]}${j}`, `${colors[i]} ${j}`, `${url}${c[i]}${j}.png`));
 					}
 				}
 			}
@@ -402,6 +401,9 @@ export default class baseUno extends Core {
 		const index = ((Object.values(this.players).find(player1 => player1 === this.meta.currentPlayer).index + (this.meta.traits.clockwise ? 1 : -1)) + Object.keys(this.players).length) % Object.keys(this.players).length;
 		this.meta.currentPlayer = Object.values(this.players).find(player2 => player2.index === index);
 		this.meta.currentPlayer.traits.renegeCard = null; // Just in case
+
+		//this.ctx.drawImage();
+
 		this.resetTimeLimit();
 		//}
 		//this.events.emit("nextPlayer", Core.phases.END);
@@ -425,16 +427,20 @@ export default class baseUno extends Core {
 		//if (!this.updateUI.cancelled) {
 		const rightPlayer = Object.values(this.players).find(player => player.index === (this.meta.currentPlayer.index+1)%Object.keys(this.players).length);
 		const leftPlayer = Object.values(this.players).find(player => player.index === (this.meta.currentPlayer.index-1+Object.keys(this.players).length)%Object.keys(this.players).length);
-		display.setTitle(`Current Discarded Card: ${this.piles.discard.cards[0].name}`)
-			   .setThumbnail(this.meta.currentPlayer.member.user.displayAvatarURL())
+		this.renderTable().then(() => {
+			display.setTitle(`Current Discarded Card: ${this.piles.discard.cards[0].name}`)
+			   //.setThumbnail(this.meta.currentPlayer.member.user.displayAvatarURL())
+			   .attachFiles(new Discord.MessageAttachment(this.canvas.toBuffer(), "game.png"))
 			   .setDescription(`It is currently ${this.meta.currentPlayer.member.displayName}'s turn${this.piles.discard.cards[0].id.startsWith("w") && this.piles.discard.cards.length > 1 ? `\n**Current Color: ${{r: "Red", g: "Green", b: "Blue", y: "Yellow"}[this.piles.discard.cards[0].traits.color]}**` : ""}${this.piles.discard.cards[0].traits.owner ? "\n**Type `!challenge` to challenge or `!next` to take the extra cards**" : ""}${this.meta.rules.stacking && this.piles.draw.traits.drawNum ? `\n**${this.piles.draw.traits.drawNum} Cards stacked to draw**` : ""}`)
 			   .addField(`${leftPlayer.member.displayName} ${this.meta.traits.clockwise ? `-> **${this.meta.currentPlayer.member.displayName}** ->` : `<- **${this.meta.currentPlayer.member.displayName}** <-`} ${rightPlayer.member.displayName}`, this.meta.actionHistory.slice(-2).reverse().join("\n"))
 			   .setColor(this.piles.discard.cards[0].id.startsWith("w") ? {r: "#D40000", g: "#2CA05A", b: "#2A7FFF", y: "#FFCC00", w: "#A100FF"}[this.piles.discard.cards[0].traits.color] : {6: "#71FF00", 5: "#BDFF00", 4: "#F1DF00", 3: "#FF9800", 2: "#FF4C00", 1: "#FF1400", 0: "#A100FF"}[Object.values(this.players).reduce((acc, player) => {return Math.min(acc, player.cards.length)}, 7).toString()] || "#26FF00")
-			   .setImage(this.piles.discard.cards[0].image || "https://i.ibb.co/BwSXYnV/unknown.png")
+			   .setImage("attachment://game.png"/*this.piles.discard.cards[0].image || "https://i.ibb.co/BwSXYnV/unknown.png"*/)
 			   .setFooter(Object.values(this.players).reduce((acc, player) => {return acc += `${player.member.displayName}: ${player.cards.length} card${Core.plural(player.cards.length)}${(this.meta.rules.points || this.meta.rules.altPoints) ? ` + ${player.traits.points} point${Core.plural(player.traits.points)}, ` : ", "}`}, "").slice(0, -2));
+			   this.meta.channel.send(display);
+		});
 		//}
 		//this.events.emit("updateUI", Core.phases.END, display);
-		/*if (!this.updateUI.cancelled) */this.meta.channel.send(display);
+		/*if (!this.updateUI.cancelled) */ 
 		//this.updateUI.cancelled = false;
 	}
 
@@ -462,6 +468,39 @@ export default class baseUno extends Core {
 		//}
 		//this.events.emit("removePlayer", Core.phases.END, player);
 		//this.removePlayer.cancelled = false;
+	}
+
+	/**
+	 * Render everything which can change visually during a game.
+	 */
+	renderTable() {
+		this.ctx.drawImage(this._canvas, 0, 0);
+		const players = Object.values(this.players);
+		this.ctx.drawImage(this.meta.images.halo, 300*Math.cos(2*Math.PI*this.meta.currentPlayer.index/players.length-Math.PI)+330, 200*Math.sin(2*Math.PI*this.meta.currentPlayer.index/players.length-Math.PI)+200);
+		players.forEach(player => {
+			const loc = {x: 300*Math.cos(2*Math.PI*player.index/players.length-Math.PI), y: 200*Math.sin(2*Math.PI*player.index/players.length-Math.PI)};
+			this.ctx.fillText(player.cards.length.toString(), loc.x + 480, loc.y + 241);
+			this.ctx.strokeText(player.cards.length.toString(), loc.x + 480, loc.y + 241);
+		});
+		return Canvas.loadImage(this.piles.discard.cards[0].image).then(image => {
+			return this.ctx.drawImage(image, 337, 125, 175, 250);
+		});
+	}
+
+	/** @param {Player[]} players2 - The list of players' avatars to render */
+	drawStatic(players2) {
+		const players = Object.values(this.players);
+		return Canvas.loadImage("images/uno/icon.png").then(image => {
+			players.forEach(player => {
+				const loc = {x: 300*Math.cos(2*Math.PI*player.index/players.length-Math.PI), y: 200*Math.sin(2*Math.PI*player.index/players.length-Math.PI)};
+				this.ctx.drawImage(image, loc.x + 430, loc.y + 210);
+				if (this.meta.rules.points || this.meta.rules.altPoints) {
+					this.ctx.fillText(`${player.traits.points} Pts`, loc.x + 430, loc.y + 285);
+					this.ctx.strokeText(`${player.traits.points} Pts`, loc.x + 430, loc.y + 285);
+				}
+			});
+			return super.drawStatic(players2);
+		});
 	}
 
 	/**

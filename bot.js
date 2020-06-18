@@ -1,4 +1,5 @@
 ﻿import Discord from "discord.js";
+import Canvas from "canvas";
 import {Core, Player, Pile, Card} from "./core.js"; // Pile and Card are imported for console-use. They are not directly used in this file.
 
 // Load built-in card games
@@ -6,6 +7,7 @@ import baseUno from "./uno.js";
 //import baseExkit from "./baseExkit.js";
 
 const bot = new Discord.Client();
+const {createCanvas, loadImg} = Canvas;
 let ans = null;
 let exited = false;
 let submissions = [];
@@ -93,7 +95,7 @@ bot.on("message", async msg => {
 				// TODO: add a voting system, keeping this as well. Default to leader only, but the leader may open it up to voting, or public voting (the entire server can vote, not just those in the game).
 				if (serverGame.meta.phase < 1) {
 					serverGame.meta.phase = 1;
-					//serverGame.setup();
+					serverGame.setup();
 					if (Object.keys(serverGame.meta.rules).length) { // If there are custom rules...
 						const rulesEmbed = new Discord.MessageEmbed()
 							.setTitle("What rules is this game being played by?\n(respond by submitting reaction emojis)")
