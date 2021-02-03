@@ -23,7 +23,7 @@ bot.on("ready", () => {
 });
 
 bot.on("message", async msg => {
-	if (exited && msg.guild?.id === "614241181341188159" && (!msg.content.startsWith("log ") || !msg.member.id === "224285881383518208")) return;
+	if (exited !msg.content.startsWith("log ") && !msg.member.id === "224285881383518208") return;
 	const args = msg.content.split(" ");
 	const channel = msg.channel;
 	const member = msg.member || msg.author;
