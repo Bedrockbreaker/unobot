@@ -10,17 +10,16 @@ class Core {
 	/**
 	 * @param {string} title - The display name of the game
 	 * @param {Discord.GuildChannel} channel - The channel to send updates to
-	 * @param {number} [phase=0] - The current phase of the game. <1 is joining, [1,2) is setup, >=2 is playing
-	 * @param {Player} [currentPlayer] - The current player, according to whose turn it is
-	 * @param {number} [timeLimit=0] - The time limit, in seconds, for each player on their turn. 0 means no limit
-	 * @param {string[]} [actionHistory=[]] - A history of players' actions
-	 * @param {boolean} [allowsMidGameJoin=true] - If the current game allows players to join after it has already started
-	 * @param {Object<string, (string[]|boolean)>} [rules={}] - An object containing the customizable rules for the game
+	 * @param {number} phase - The current phase of the game. <1 is joining, [1,2) is setup, >=2 is playing
+	 * @param {Player} currentPlayer - The current player, according to whose turn it is
+	 * @param {number} timeLimit - The time limit, in seconds, for each player on their turn. 0 means no limit
+	 * @param {string[]} actionHistory - A history of players' actions
+	 * @param {Object<string, (string[]|boolean)>} rules - An object containing the customizable rules for the game
 	 * @param {Object<string, *>} traits - An object used to define any custom traits of the game
 	 * @param {Object<string, Pile>} piles - An object containing all of the card piles in the game
-	 * @param {Object<string, Player>} players - An object while holds all the players in a game
+	 * @param {Object<string, Player>} players - An object which holds all the players in a game
 	*/
-	constructor(title, channel, rules = {}, traits = {}, piles, players, timeLimit = 0, allowsMidGameJoin = true, phase = 0, currentPlayer, actionHistory = []) {
+	constructor(title, channel, rules = {}, traits = {}, piles = {}, players = {}, timeLimit = 0, phase = 0, currentPlayer, actionHistory = []) {
 		// If for whatever reason I need to get the class of a game: game#constructor.name
 		this.meta = {
 			/** The display name of the game */
@@ -35,11 +34,6 @@ class Core {
 			timeLimit: timeLimit,
 			/** A history of players' actions */
 			actionHistory: actionHistory,
-			allowsMidGameJoin: allowsMidGameJoin,
-			/** Cache of images used for rendering 
-			 * @type {Object<string, CanvasImageSource>}
-			*/
-			images: {},
 			/** List of optional rules. Initialize with a string array, is later replaced with whether those rules are active or not */
 			rules: rules,
 			/** An object used to define any custom traits of the game */
@@ -54,16 +48,30 @@ class Core {
 		/** Players who are playing in the game */
 		this.players = players;
 
-		/** The canvas used to render scenes 
-		 * @type {HTMLCanvasElement}
-		*/
-		this.canvas = Canvas.createCanvas(850, 500);
-		/** The rendering context of the canvas 
-		 * @type {CanvasRenderingContext2D}
-		*/
-		this.ctx = this.canvas.getContext("2d");
+		this.render = new Render(Canvas.createCanvas(850, 500), {});
 		/** The events emitter used for mods */
 		//this.events = new events.EventEmitter();
+	}
+
+	// credit to trincot on stackoverflow https://stackoverflow.com/questions/40291987/javascript-deep-clone-object-with-circular-references
+	/**
+	 * Deep clones the provided object
+	 * @param {Object} obj - The object to clone
+	 * @param {WeakMap} hash - hash which stores which objects have already been cloned, allowing circular references.
+	 * @returns {Object} The cloned object
+	 */
+	static deepClone(obj, hash = new WeakMap()) {
+		if (Object(obj) !== obj || obj instanceof Function || obj instanceof Render || obj instanceof Discord.Base) return obj; // Don't copy items which don't copy nicely :)
+		if (hash.has(obj)) return hash.get(obj); // Cyclic reference
+		
+		let res;
+		try {
+        	res = new obj.constructor();
+		} catch(e) {
+			res = Object.create(Object.getPrototypeOf(obj));
+		}
+		hash.set(obj, res);
+		return Object.assign(res, ...Object.keys(obj).map(key => ({[key]: Core.deepClone(obj[key], hash)})));
 	}
 
 	/** 
@@ -93,6 +101,19 @@ class Core {
 	}
 
 	/**
+	 * Given a proper array, each with a weighted chance, it will return one item from the list, weighted accordingly.
+	 * @param {[*, ?Number][]} array - the list of items and their weighted chances
+	 * @returns {*} The chosen item
+	 */
+	static weighted(array) {
+		let n = Math.random()*array.reduce((acc, item) => acc + (item[1] || 1), 0);
+		for (let i = 0; i < array.length; i++) {
+			n -= (array[i][1] || 1);
+			if (n <= 0) return array[i][0];
+		}
+	}
+
+	/**
 	 * If `num` is equal to 1, returns the singular suffix. Else, return the plural suffix
 	 * @param {number} num 
 	 * @param {string} [plural="s"] 
@@ -108,72 +129,113 @@ class Core {
 	 * Attempts to find the cards specified from an array of cards. Basically a fancy filter function
 	 * @param {Card[]} cards - The list of cards to search in
 	 * @param {string} cardID - The card id of the card
-	 * @param {(Object<string, *>|string|Array[])} traits - The special traits a card must have. Any boolean traits of the card must be false if not specified.
-	 * If an array or string is passed, any traits which aren't set to a specific value, i.e. "marked" default to true. 
-	 * @example getCards(player, "r2", "marked,score:2,stolenfrom:bob")
-	 * @example getCards(player, "r2", {marked: true, score: 2, stolenfrom: "bob"})
-	 * @example getCards(player, "r2", [["marked"],["score","2"],["stolenfrom","bob"]])
+	 * @param {?(Object<string, *>|string|string[][])} traits - The special traits a card must have. Any boolean traits of the card must be false if a value is not specified.
+	 * If an array or string is passed, any traits which aren't set to a specific value, i.e. "marked" default to true.
+	 * @example getCards(player.cards, "r2", "")
+	 * @example getCards(player.cards, "*", "r,marked,score:>=7/<3,!stolenfrom:bob")
+	 * @example getCards(player.cards, "*", {r: true, marked: true, score: ">=7/<3", "!stolenfrom": "bob"})
+	 * @example getCards(player.cards, "any", [["r"],["marked"],["score",">=7/<3"],["!stolenfrom","bob"]])
+	 * @returns {Card[]} The list of cards which match
 	 */
 	static getCards(cards, cardID, traits) {
-		// TODO: allow ranges for numbers to be selected. ("score:>2,score:<=5")
+		// TODO: allow "or-ing" between traits (Needs grouping symbols)
 		traits = traits || [];
 		if (typeof traits === "object" && typeof traits.length === "undefined") traits = Object.keys(traits).map(key => [key, traits[key].toString()]);
 		if (typeof traits === "string") traits = traits.split(",").map(trait => trait.split(":"));
-		const tempFilter = cards.filter(card => card.id === cardID && traits.every(trait => card.traits[trait[0]]?.toString() === (trait[1] || "true")));
-		return tempFilter.filter(card => {
-			return Object.keys(card.traits).every(trait => {
-				const mentionedTrait = traits.find(trait2 => trait2[0] === trait);
-				return typeof card.traits[trait] === "boolean" ? (card.traits[trait].toString() === (mentionedTrait ? (mentionedTrait[1] || "true") : "false")) : true;
-			});
-		});
+		const rIndex = traits.findIndex(trait => ["r", "rand", "random", "randomize", "shuffle"].includes(trait[0]));
+		if (rIndex > -1) traits.splice(rIndex, 1);
+		cards = cards.filter(card => [card.id, "*", "any"].includes(cardID) && traits.every(trait => {
+			const invert = trait[0].startsWith("!");
+			const traitName = trait[0].replace("!","");
+			const values = trait[1]?.split("/") || ["true"];
+			for (let i = 0; i < values.length; i++) {
+				if ((values[i].startsWith(">=") && card.traits[traitName] >= Number(values[i].substring(2))) ||
+					(values[i].startsWith(">") && card.traits[traitName] > Number(values[i].substring(1))) ||
+					(values[i].startsWith("<=") && card.traits[traitName] <= Number(values[i].substring(2))) ||
+					(values[i].startsWith("<") && card.traits[traitName] < Number(values[i].substring(1))) ||
+					(card.traits[traitName]?.toString() == values[i])) return !invert; // Only == so "undefined" can match "false" (!id.nonexistanttrait:false)
+			}
+			return invert;
+		}));
+		return rIndex > -1 ? Core.shuffle(cards) : cards;
 	}
 
 	/**
-	 * Display the specified players' cards to them, optionally sorted and a unique color for each one.
-	 * If a falsey value is passed, deal all players. If a player's member id is passed, only deal to that player.
-	 * @param {Player[]} players - the player(s) to display their cards to.
-	 * @param {function(Player) => Card[]} [sortFunction] - The function to sort a specific player's cards by
-	 * @param {function(Player) => Discord.ColorResolvable} [colorFunction] - The function for the color of a specific player's embed sidebar
-	 * @returns {void}
+	 * Returns all players which match the mention, username, or nickname
+	 * @param {Player[]} players 
+	 * @param {string} input 
+	 * @returns {Player[]} The matching players
 	 */
-	static dealCards(players, sortFunction, colorFunction) {
-		// TODO: implement passing in a sort function. Ex: phase 10, where the cards should be sorted to suit the players' phases.
-		// TODO: implement the color. Ex: you have 1 card in uno.
-		if (players.length === 0) return;
-		const player = players.pop();
-		if (player.member.user.bot) return this.dealCards(players, sortFunction, colorFunction); // I use the bot to test things. Makes sure that this doesn't error
-		const hand = new Discord.MessageEmbed()
-			.setTitle("Your Hand:")
-			.setDescription(Object.values(player.cards).map(card => `${card.id}: ${card.name}`).sort().join("\n"))
-			.setColor(Math.floor(Math.random() * 16777215));
-		player.member.send(hand).then(this.dealCards(players, sortFunction, colorFunction));
+	static getPlayers(players, input) {
+		const mention = /<@!?(\d*)>/;
+		if (mention.test(input)) return [players.find(player => player.member.id === input.replace(mention, "$1"))];
+		const matches = [];
+		input = input.replace("#", "").toLowerCase();
+		players.forEach(player => {
+			if ((player.member.displayName + player.member.user.discriminator).toLowerCase().includes(input) || (player.member.user.username + player.member.user.discriminator).toLowerCase().includes(input)) matches.push(player);
+		});
+		return matches;
+	}
+
+	/**
+	 * Displays the rules, if any.
+	 * @returns {boolean} Whether the game had any rules which were displayed
+	 */
+	displayRules() {
+		// TODO: add a voting system, keeping this as well. Default to leader only, but the leader may open it up to voting, or public voting (the entire server can vote, not just those in the game).
+		// TODO: remove vote when emoji is removed ("un-reactioned").
+		const rules = Object.keys(this.meta.rules);
+		if (!rules.length) return false;
+		// If there are custom rules...
+		const rulesEmbed = new Discord.MessageEmbed()
+			.setTitle("What rules is this game being played by?\n(respond by submitting reaction emojis)")
+			.setDescription(`**When you are done changing the rules, type \`!start\`\nCommands for Playing: https://github.com/Bedrockbreaker/unobot/wiki/${this.meta.title.replace(/ /g, "-")}**`)
+			.setColor(Math.floor(Math.random() * 16777215) + 1);
+		for (let i = 0; i < rules.length; i++) {
+			rulesEmbed.addField(this.meta.rules[rules[i]][0], this.meta.rules[rules[i]][1]);
+		}
+		rulesEmbed.addField("Vote below by reacting with emojis!", "↓");
+		this.meta.channel.send(rulesEmbed)
+			.then(message => {
+				this.meta.rulesEmbed = message;
+				addReaction(message, this.meta.rules, 0);
+			})
+			.then(() => {
+				this.meta.ruleReactor = this.meta.rulesEmbed.createReactionCollector((reaction, member) => {
+					return Object.values(this.meta.rules).map(rule => rule[2]).includes(reaction.emoji.name) && member.id === Object.values(this.players).find(player => player.isLeader).member.id;
+				});
+				this.meta.ruleReactor.on("end", collection => {
+					const ruleBools = Object.values(this.meta.rules).map(rule => collection.map(reaction => reaction.emoji.name).includes(rule[2]));
+					for (let i in ruleBools) {
+						this.meta.rules[rules[i]] = ruleBools[i];
+					}
+				});
+			});
+		return true;
 	}
 
 	/**
 	 * Registers mods and caches images
 	 */
 	setup() {
-		return Canvas.loadImage("images/halo.png").then(image => {
-			this.meta.images.halo = image;
-		});
+		return Canvas.loadImage("images/halo.png").then(image => this.render.images.halo = image);
+	}
+
+	/**
+	 * Generates a default player
+	 * @param {Discord.GuildMember} member - The member to generate a player for
+	 * @param {Boolean} isLeader - Whether the new player is a leader
+	 */
+	genDefaultPlayer(member, isLeader) {
+		return new Player(member, [], isLeader);
 	}
 
 	/**
 	 * Starts the game
 	 */
 	start() {
-		this.ctx.font = "40px Arial";
-		return new Promise(resolve => {
-			Canvas.loadImage("images/background.png").then(image => {
-				this.ctx.drawImage(image, 0, 0);
-				return this.drawStatic(Object.values(this.players).sort((player1, player2) => player1.index - player2.index));
-			}).then(() => {
-				this._canvas = Canvas.createCanvas(this.canvas.width, this.canvas.height);
-				this._ctx = this._canvas.getContext("2d");
-				this._ctx.drawImage(this.canvas, 0, 0);
-				resolve();
-			});
-		});
+		this.render.ctx.font = "40px Arial";
+		return this.drawStatic();
 	}
 
 	/**
@@ -181,9 +243,10 @@ class Core {
 	 * Usually to handle discarding
 	 * @virtual
 	 * @param {string[]} args - The exact string the user typed, sans the server prefix, separated by spaces
-	 * @param {Discord.GuildMember|Discord.User} - The member who typed the message
+	 * @param {Discord.GuildMember|Discord.User} member - The member who typed the message
+	 * @param {Discord.Channel} channel - The channel the command was posted in
 	 */
-	discard(args, member) {}
+	discard(args, member, channel) {}
 
 	/**
 	 * Advances to the next player
@@ -205,17 +268,20 @@ class Core {
 
 	/**
 	 * Adds a player to the game
-	 * @virtual
 	 * @param {Discord.GuildMember} member - The member to generate a Player for
+	 * @param {Boolean} isLeader - Whether the newly added player is a leader
 	 */
-	addPlayer(member) {}
+	addPlayer(member, isLeader) {
+		this.players[member.id] = this.genDefaultPlayer(member, isLeader);
+	}
 
 	/**
 	 * Removes a player from the game
-	 * @virtual
 	 * @param {Player} player - The Player to remove from the game
 	 */
-	removePlayer(player) {}
+	removePlayer(player) {
+		delete this.players[player.member.id];
+	}
 
 	/**
 	 * Randomizes the player order within a game
@@ -239,16 +305,55 @@ class Core {
 	}
 
 	/**
+	 * Renders everything which can visually change during the game
+	 * @virtual
+	 */
+	renderTable() {}
+
+	/**
 	 * Render static images which don't change during the game onto the table
 	 * @param {Player[]} players - The list of players' avatars to render
 	 */
-	drawStatic(players) {
+	drawStatic() {
+		return Canvas.loadImage("images/background.png").then(image => {
+			this.render.ctx.drawImage(image, 0, 0);
+			return this.drawAvatars(Object.values(this.players).sort((player1, player2) => player1.index - player2.index));
+		});
+	}
+
+	/**
+	 * Helper method for drawStatic(). Don't manually call
+	 * @param {Player[]} players - The list of players' avatars to render
+	 */
+	drawAvatars(players) {
 		if (!players.length) return;
 		const pLength = Object.keys(this.players).length;
 		return Canvas.loadImage(players[0].member.user.displayAvatarURL({format: "png", size: 64})).then(image => {
-			this.ctx.drawImage(image, 300*Math.cos(2*Math.PI*players[0].index/pLength-Math.PI)+340, 200*Math.sin(2*Math.PI*players[0].index/pLength-Math.PI)+210, 80, 80);
-			return this.drawStatic(players.slice(1));
+			this.render.ctx.drawImage(image, 300*Math.cos(2*Math.PI*players[0].index/pLength-Math.PI)+340, 200*Math.sin(2*Math.PI*players[0].index/pLength-Math.PI)+210, 80, 80);
+			return this.drawAvatars(players.slice(1));
 		});
+	}
+
+	saveCanvas() {
+		this.render._canvas = Canvas.createCanvas(this.render.canvas.width, this.render.canvas.height);
+		this.render._ctx = this.render._canvas.getContext("2d");
+		this.render._ctx.drawImage(this.render.canvas, 0, 0);
+	}
+
+	/**
+	 * Display the specified players' cards to them
+	 * @param {Player[]} players - the player(s) to display their cards to.
+	 * @returns {void}
+	 */
+	dealCards(players) {
+		if (players.length === 0) return;
+		const player = players.pop();
+		if (player.member.user.bot) return this.dealCards(players); // I use the bot to test things. Makes sure that this doesn't error
+		const hand = new Discord.MessageEmbed()
+			.setTitle("Your Hand:")
+			.setDescription(Object.values(player.cards).map(card => `${card.id}: ${card.name}`).sort().join("\n"))
+			.setColor(Math.floor(Math.random() * 16777215));
+		player.member.send(hand).then(this.dealCards(players));
 	}
 
 	/**
@@ -276,6 +381,26 @@ class Core {
 		//this.draw.cancelled = false;
 		return newCards;
 	}
+
+	/**
+	 * Helper method for resolving a player from a string
+	 * @param {string} input 
+	 */
+	getPlayers(input) {
+		return Core.getPlayers(Object.values(this.players), input);
+	}
+}
+
+/**
+ * Private method for adding reactions to the rules message
+ * @param {Discord.Message} message - The Message to add the reaction to
+ * @param {Object} rules - The rules to pull reactions from
+ * @param {number} index - Internal use only.
+ */
+function addReaction(message, rules, index) {
+	if (index >= Object.keys(rules).length) return;
+	if (!Object.values(rules)[index][2]) return addReaction(message, rules, index + 1);
+	message.react(Object.values(rules)[index][2]).then(() => addReaction(message, rules, index + 1));
 }
 
 /**
@@ -299,6 +424,17 @@ class Player {
 		this.knowledge = knowledge;
 		this.traits = traits;
 	}
+
+	/**
+	 * Attempts to find the cards specified from the player's hand.
+	 * @param {string} cardID - The card id of the card
+	 * @param {?(Object<string, *>|string|string[][])} traits - The special traits a card must have. Any boolean traits of the card must be false if a value is not specified.
+	 * If an array or string is passed, any traits which aren't set to a specific value, i.e. "marked" default to true.
+	 * @returns {Card[]}
+	 */
+	getCards(cardID, traits) {
+		return Core.getCards(this.cards, cardID, traits);
+	}
 }
 
 /**
@@ -314,6 +450,17 @@ class Pile {
 		this.cards = cards;
 		this.traits = traits;
 	}
+	
+	/**
+	 * Attempts to find the cards specified from the pile
+	 * @param {string} cardID - The card id of the card
+	 * @param {?(Object<string, *>|string|string[][])} traits - The special traits a card must have. Any boolean traits of the card must be false if a value is not specified.
+	 * If an array or string is passed, any traits which aren't set to a specific value, i.e. "marked" default to true.
+	 * @returns {Card[]}
+	 */
+	getCards(cardID, traits) {
+		return Core.getCards(this.cards, cardID, traits);
+	}
 }
 
 /**
@@ -326,31 +473,48 @@ class Card {
 	 * @param {?string} [name=id] - The Human-Readable name of the card
 	 * @param {?string} image - The URL to the image of the card
 	 * @param {?Object<string, *>} traits - Any special traits the card might have
+	 * @param {?Object<string, *>} hidden - Exactly like traits, but never shown to the player
 	 */
-	constructor(id, name, image = "", traits = {}) {
+	constructor(id, name, image = "", traits = {}, hidden = {}) {
 		this.id = id;
 		this.name = name || id;
 		this.image = image;
 		this.traits = traits;
+		this.hidden = hidden;
 	}
 
 	/**
-	 * Tests to see if a card is "real"
-	 * @returns {boolean} If the card is real
-	 */
-	isEmpty() {
-		return Object.keys(this).length > 0
-	}
-
-	/**
-	 * Tests if two cards are equal. Ignores the name and images of the cards
-	 * @deprecated
-	 * @param {Card} card - The second card to check of equivity
-	 * @returns {boolean} If the two cards' values are equal
+	 * Returns if the cards are effectively equivalent (everything matches, ignoring the hidden properties)
+	 * @param {Card} card - The card to compare to
 	 */
 	isEqual(card) {
-		if (this === card) return true;
-		return typeof Core.getCards([card], this.id, this.traits)[0] !== "undefined" && typeof Core.getCards([this], card.id, card.traits)[0] !== "undefined";
+		// TODO: match hidden as well
+		return Core.getCards([card], this.id, this.traits) && this.name === card.name && this.image === card.image;
+	}
+}
+
+/**
+ * Special class for storing objects related to rendering. Only exists because deepClone and node canvas don't like each other.
+ * @class
+ */
+class Render {
+	/**
+	 * @param {HTMLCanvasElement} canvas 
+	 * @param {Object<string, CanvasImageSource>} imagecache 
+	 */
+	constructor(canvas, imagecache) {
+		/** The canvas used to render scenes */
+		this.canvas = canvas;
+		/** The rendering context of the canvas*/
+		this.ctx = canvas.getContext("2d");
+		/** Cache of images used for rendering */
+		this.images = imagecache;
+		/** Helper function for drawing text with a border */
+		this.drawText = (text, x, y) => {
+			this.ctx.fillText(text, x, y);
+			this.ctx.strokeText(text, x, y);
+		}
+		// TODO: queue system for scheduling rendering, so races can be avoided
 	}
 }
 

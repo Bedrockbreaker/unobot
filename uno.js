@@ -7,12 +7,8 @@ import {Core, Player, Pile, Card} from "./core.js";
  * @class baseUno
 */
 export default class baseUno extends Core {
-	/**
-	 * @param {Discord.GuildChannel} channel - The channel to send updates to
-	 * @param {Discord.GuildMember} member - The provided member to make a player out of
-	 * @param {Player} firstPlayer  - The initial default player
-	 */
-	constructor(channel, member, firstPlayer) {
+	/**@param {Discord.GuildChannel} channel - The channel to send updates to*/
+	constructor(channel) {
 		// TODO: add a command which changes the number points requried to win/lose.
 		const rules = {
 			points: ["Play for Points - :100:", "The game is played in a series of rounds, where the winning player recieves a number of points based on the other players' cards and wins once it's over 500", "💯"],
@@ -25,18 +21,8 @@ export default class baseUno extends Core {
 			jumpIn: ["Jump-in Rule - :zap:", "If you have a card that exactly matches the current card, you can play it immediately (no matter whose turn it is), and play continues as if you just took your turn", "⚡"]
 		}
 
-		const players = {
-			[member.id]: firstPlayer
-		}
-		players[member.id].traits = {
-			renegeCard: null,
-			oneCardNoUno: false,
-			points: 0
-		}
-
-		super("Uno", channel, rules, { startingCards: 7, clockwise: true}, {}, players);
+		super("Uno", channel, rules, {startingCards: 7, clockwise: true});
 	}
-
 	/*
 	static calls = Object.freeze({
 		SAID_UNO: 0, // If the player with 1 card said uno
@@ -45,25 +31,17 @@ export default class baseUno extends Core {
 	});
 	*/
 
-	setup() {
-		return super.setup();
-		//new unoMod(this);
-		// Register server mods here...
-		//this.events.emit("setup", Core.phases.START);
-		// if (!this.setup.cancelled) {}
-		//this.events.emit("setup", Core.phases.END);
-		//this.setup.cancelled = false;
-	}
-
-	/**@param {Discord.GuildMember} member - The member to generate a Player from*/
-	genDefaultPlayer(member) {
+	/**
+	 * @param {Discord.GuildMember} member - The member to generate a Player from
+	 * @param {Boolean} isLeader - Whether the new player is a leader
+	 */
+	genDefaultPlayer(member, isLeader) {
 		//this.events.emit("genDefaultPlayer", Core.phases.START, player);
 		//this.events.emit("genDefaultPlayer", Core.phases.END, player);
 		//this.genDefaultPlayer.cancelled = false;
-		return new Player(member, [], false, 0, {}, {renegeCard: null, oneCardNoUno: false, points: 0});
+		return new Player(member, [], isLeader, 0, {}, {renegeCard: null, oneCardNoUno: false, points: 0});
 	}
 
-	/**@returns {void} */
 	start() {
 		//this.events.emit("start", Core.phases.START);
 		//if (!this.start.cancelled) {
@@ -99,9 +77,9 @@ export default class baseUno extends Core {
 				this.nextPlayer();
 				break;
 		}
-		Core.dealCards(Object.values(this.players));
-		this.ctx.fillStyle = "#FFFFFF";
-		this.meta.channel.send(`Play order: ${Object.values(this.players).sort((player1, player2) => player1.index - player2.index).reduce((acc, player) => {return `${acc}${player.member.displayName}, `}, "").slice(0,-2)}\nGo to <https://github.com/Bedrockbreaker/unobot/wiki/Uno> to learn how to play.`);
+		this.dealCards(Object.values(this.players));
+		this.render.ctx.fillStyle = "#FFFFFF";
+		this.meta.channel.send(`Play order: ${Object.values(this.players).sort((player1, player2) => player1.index - player2.index).reduce((acc, player) => {return `${acc}${player.member.displayName}, `}, "").slice(0,-2)}\nGo to <https://github.com/Bedrockbreaker/unobot/wiki/Uno> for Uno-specific commands.`);
 		if (!Object.values(this.players).reduce((acc, player) => {return acc+player.traits.points},0)) super.start().then(() => this.updateUI());
 		this.resetTimeLimit();
 		//}
@@ -165,13 +143,13 @@ export default class baseUno extends Core {
 					//this.events.emit("discard_sc", Core.phases.START, args, player);
 					let message = "";
 					//if (!this.discard.sc?.cancelled) {
-					if (!player.isLeader) {this.meta.channel.send("Only the leader can change that!"); break;}
-					if (isNaN(Number(args[1]))) {this.meta.channel.send(`${typeof args[1] === "undefined" ? "That" : `\`${args[1]}\``} is not a valid number!`); break;}
+					if (!player.isLeader) {channel.send("Only the leader can change that!"); break;}
+					if (isNaN(Number(args[1]))) {channel.send(`${typeof args[1] === "undefined" ? "That" : `\`${args[1]}\``} is not a valid number!`); break;}
 					this.meta.traits.startingCards = Math.abs(Math.floor(Number(args[1])));
 					message = `:white_check_mark: Successfully changed the starting number of cards to ${this.meta.traits.startingCards}`;
 					//}
 					//this.events.emit("discard_sc", Core.phases.END, args, player, message);
-					/*if (this.discard.sc && !this.discard.sc?.cancelled) */this.meta.channel.send(message);
+					/*if (this.discard.sc && !this.discard.sc?.cancelled) */channel.send(message);
 					//this.discard.sc = {cancelled: false};
 					break;
 				}
@@ -181,13 +159,14 @@ export default class baseUno extends Core {
 					/**@type {Card[]} */
 					let drew = [];
 					//if (this.discard.draw && !this.discard.draw.cancelled) {
-					if (this.meta.phase < 2 || this.meta.currentPlayer !== player || player.traits.renegeCard || this.piles.discard.cards[0].traits.owner) break; // renegeCard also happens to check if the player is trying to draw multiple times
-					drew = this.draw(player, this.piles.draw, this.meta.rules.stacking ? this.piles.draw.traits.drawNum : (this.meta.rules.contDraw ? 0 : 1));
+					if (this.meta.phase < 2 || this.meta.currentPlayer !== player || player.traits.renegeCard) break;
+					drew = this.draw(player, this.piles.draw, this.meta.rules.stacking ? this.piles.draw.traits.drawNum : (this.piles.discard.cards[0].traits.owner ? 4 : (this.meta.rules.contDraw ? 0 : 1)));
 					player.traits.renegeCard = drew[drew.length-1];
 					if (this.meta.rules.stacking) {
-						if (this.piles.draw.traits.drawNum) this.nextPlayer(); // Also nulls the renege card
+						if (this.piles.draw.traits.drawNum) this.nextPlayer();
 						this.piles.draw.traits.drawNum = 0;
 					}
+					if (this.piles.discard.cards[0].traits.owner) this.piles.discard.cards[0].traits.owner = null;
 					//}
 					//this.events.emit("discard_draw", Core.phases.END, args, player, drew);
 					//if (this.discard.draw && !this.discard.draw.cancelled) {
@@ -202,19 +181,8 @@ export default class baseUno extends Core {
 				case "next":
 				case "endturn": {
 					//this.events.emit("discard_next", Core.phases.START, args, player);
-					/**@type {Card[]} */
-					let drew;
-					let takeD4Cards = false;
-					if (/*this.discard.next && !this.discard.next.cancelled && */this.meta.phase >= 2 && this.meta.currentPlayer === player && this.piles.discard.cards[0].traits.owner) {
-						takeD4Cards = true;
-						drew = this.draw(player, this.piles.draw, this.meta.rules.stacking ? this.piles.draw.traits.drawNum : 4).length;
-						if (this.meta.rules.stacking) this.piles.draw.traits.drawNum = 0;
-						this.meta.actionHistory.push(`${member.displayName} was forced to draw ${drew} card${Core.plural(drew)}`);
-						this.piles.discard.cards[0].traits.owner = null;
-						this.checkPlayersOneCardNoUno();
-					}
 					//this.events.emit("discard_next", Core.phases.END, args, player, drew);
-					if (/*this.discard.next && !this.discard.next.cancelled && */this.meta.phase >= 2 && this.meta.currentPlayer === player && (player.traits.renegeCard || takeD4Cards)) {
+					if (/*this.discard.next && !this.discard.next.cancelled && */this.meta.phase >= 2 && this.meta.currentPlayer === player && player.traits.renegeCard) {
 						this.nextPlayer();
 						this.updateUI();
 					}
@@ -274,67 +242,71 @@ export default class baseUno extends Core {
 				}
 				default: {
 					if (this.meta.phase < 2) break;
+					const card = player.getCards(args[0].split(".")[0], args[0].split(".")[1])[0];
+					if (this.meta.currentPlayer !== player && (!this.meta.rules.jumpIn || card?.id !== this.piles.discard.cards[0].id)) break;
+					if (!card) return channel.send(`Cannot find card \`${args[0]}\` in your hand`);
+					if (!this.match(card, this.piles.discard.cards[0])) return channel.send("The cards don't match!");
+					if (this.meta.rules.stacking && this.piles.draw.traits.drawNum && (!card.id.endsWith("d") && card.id !== "w4")) return channel.send("You must draw cards!");
+
+					let action = "";
 					let discardStyle = "discarded";
-					// !id.bool,num:2,string:yeet ...args
-					const card = Core.getCards(player.cards, args[0].split(".")[0], args[0].split(".")[1])[0];
-					if (this.meta.rules.jumpIn && player !== this.meta.currentPlayer && card?.id === this.piles.discard.cards[0].id) {
-						member = player.member;
-						this.meta.currentPlayer = player;
-						discardStyle = "jumped in with";
-					}
-					if (this.meta.currentPlayer !== player) break;
-					if (!card || !this.match(card, this.piles.discard.cards[0], args, player) || (this.meta.rules.stacking && this.piles.draw.traits.drawNum && (card.id.substring(1) !== "d" && card.id !== "w4"))) {
-						channel.send("Invalid move!");
-						break;
-					}
-					this.piles.discard.cards.unshift(player.cards.splice(player.cards.findIndex(card2 => card === card2),1)[0]);
-					const sneaky = Object.values(this.players).find(player2 => player2.traits.oneCardNoUno);
-					if (sneaky) {
-						sneaky.traits.oneCardNoUno = false;
-						this.meta.actionHistory.push(`${sneaky.member.displayName} got away without saying uno!`);
-					}
-					let action = `${member.displayName} ${discardStyle} a ${card.name}`;
-					if (card.id.startsWith("w")) card.traits.color = args[1].substring(0,1);
-					if (card.id === "w4") {
-						this.piles.draw.traits.drawNum += 4;
-						card.traits.owner = player;
-					}
-					this.nextPlayer();
-					if (player.cards.length !== 0) {
-						if (player.cards.length === 1 && !player.traits.oneCardNoUno) player.traits.oneCardNoUno = true;
+					if (player.cards.length !== 1) {
 						switch(card.id.substring(1)) {
 							case "r":
+								discardStyle = this.setToCurrentPlayer(player);
 								this.meta.traits.clockwise = !this.meta.traits.clockwise;
 								if (Object.keys(this.players).length === 2) {
-									action += ` and skipped ${this.meta.currentPlayer.member.displayName}'s turn`;
-								} else {
 									this.nextPlayer();
-									action += " and reversed the play direction";
+									action = ` and skipped ${this.meta.currentPlayer.member.displayName}'s turn`;
+								} else {
+									action = " and reversed the play direction";
 								}
-								this.nextPlayer();
 								break;
 							case "s":
-								action += ` and skipped ${this.meta.currentPlayer.member.displayName}'s turn`;
+								discardStyle = this.setToCurrentPlayer(player);
 								this.nextPlayer();
+								action += ` and skipped ${this.meta.currentPlayer.member.displayName}'s turn`;
 								break;
 							case "d":
+								discardStyle = this.setToCurrentPlayer(player);
 								if (this.meta.rules.stacking) {
 									this.piles.draw.traits.drawNum += 2;
 								} else {
-									const drew = this.draw(this.meta.currentPlayer, this.piles.draw, 2).length;
-									action += ` and forced ${this.meta.currentPlayer.member.displayName} to draw ${drew} card${Core.plural(drew)}`;
 									this.nextPlayer();
+									const drew = this.draw(this.meta.currentPlayer, this.piles.draw, 2).length;
+									action = ` and forced ${this.meta.currentPlayer.member.displayName} to draw ${drew} card${Core.plural(drew)}`;
+								}
+								break;
+							case "4":
+							case "w":
+								if (!card.id.startsWith("w")) break;
+								if (!args[1]) return channel.send(`Specify a color to change to! (\`!${args[0]} 𝘤𝘰𝘭𝘰𝘳\`. Accepts \`r, red, g, green, b, blue, y, yellow\`)`);
+								if (!["r", "g", "b", "y"].includes(args[1].substring(0,1))) return channel.send("Invalid color!");
+								discardStyle = this.setToCurrentPlayer(player);
+								card.traits.color = args[1].substring(0,1);
+								if (card.id === "w4") {
+									card.traits.owner = player;
+									if (this.meta.rules.stacking) this.piles.draw.traits.drawNum += 4;
 								}
 								break;
 							case "7":
 								if (!this.meta.rules.zSCards) break;
-								const player2ID = args[1].replace(/<@!?(\d*)>/, "$1");
-								[player.cards, this.players[player2ID].cards] = [this.players[player2ID].cards, player.cards];
-								this.players[player2ID].traits.oneCardNoUno = player.traits.oneCardNoUno = false;
-								Core.dealCards([this.players[player2ID]]);
+								if (!args[1]) return channel.send(`Specify a player to swap hands with! (\`!${args[0]} 𝘯𝘢𝘮𝘦\`. Accepts @, or any portion of a username or nickname)\`)`);
+								let player2 = this.getPlayers(args[1]);
+								if (player2.length > 1) return channel.send(`Be more specific! \`${args[1]}\` matched multiple players`);
+								if (!player2.length) return channel.send("Could not find that player");
+								discardStyle = this.setToCurrentPlayer(player);
+								this.piles.discard.cards.unshift(player.cards.splice(player.cards.findIndex(card2 => card === card2), 1)[0]);
+								player2 = player2[0];
+								[player.cards, player2.cards] = [player2.cards, player.cards];
+								player2.traits.oneCardNoUno = player.traits.oneCardNoUno = false;
+								this.dealCards([player2]);
+								action = ` and swapped hands with ${player2.member.displayName}`;
 								break;
 							case "0":
 								if (!this.meta.rules.zSCards) break;
+								discardStyle = this.setToCurrentPlayer(player);
+								this.piles.discard.cards.unshift(player.cards.splice(player.cards.findIndex(card2 => card === card2), 1)[0]);
 								const pLength = Object.keys(this.players).length;
 								const temp = Object.values(this.players).find(player => player.index === (this.meta.traits.clockwise ? pLength - 1 : 0)).cards;
 								for (let i = this.meta.traits.clockwise ? pLength - 1 : 0; this.meta.traits.clockwise ? i > 0 : i < pLength - 1; i += this.meta.traits.clockwise ? -1 : 1) {
@@ -343,11 +315,16 @@ export default class baseUno extends Core {
 									player2.traits.oneCardNoUno = false;
 								}
 								Object.values(this.players).find(player => player.index === (this.meta.traits.clockwise ? 0 : pLength - 1)).cards = temp;
-								Core.dealCards(Object.values(this.players).filter(player3 => player3 !== player));
-								action += ` and rotated everyone's hands around`;
+								this.dealCards(Object.values(this.players).filter(player3 => player3 !== player));
+								action = ` and rotated everyone's hands around`;
+								break;
+							default:
+								discardStyle = this.setToCurrentPlayer(player);
 								break;
 						}
-						Core.dealCards([player]);
+						this.checkPlayersOneCardNoUno();
+						if (player.cards.length === 2 && !player.traits.oneCardNoUno) player.traits.oneCardNoUno = true; // 2, because the card is removed from their hand later.
+						this.nextPlayer();
 					} else {
 						let won = true;
 						if (this.meta.rules.points) {
@@ -375,16 +352,18 @@ export default class baseUno extends Core {
 						}
 						if (won) {
 							this.meta.channel.send(`${member.displayName} has won the game${this.meta.rules.points || this.meta.rules.altPoints ? ` with ${player.traits.points} points` : ""}!`);
-							action += `, winning the game${this.meta.rules.points || this.meta.rules.altPoints ? ` with ${player.traits.points} points` : ""}!`;
+							action = `, winning the game${this.meta.rules.points || this.meta.rules.altPoints ? ` with ${player.traits.points} points` : ""}!`;
 							this.meta.ended = true;
 						} else {
 							this.meta.channel.send(`${member.displayName} has won the round with ${player.traits.points} points!`);
-							action += `, winning the round with ${player.traits.points} points!`;
+							action = `, winning the round with ${player.traits.points} points!`;
 							player.traits.oneCardNoUno = false;
 							this.start();
 						}
 					}
-					this.meta.actionHistory.push(action);
+					if (!this.meta.rules.zSCards || (!card.id.endsWith("0") && !card.id.endsWith("7"))) this.piles.discard.cards.unshift(player.cards.splice(player.cards.findIndex(card2 => card === card2), 1)[0]);
+					this.meta.actionHistory.push(`${member.displayName} ${discardStyle} a ${card.name}` + action);
+					this.dealCards([player]);
 					this.updateUI();
 				}
 			}
@@ -396,14 +375,8 @@ export default class baseUno extends Core {
 	nextPlayer() {
 		//this.events.emit("nextPlayer", Core.phases.START);
 		//if (!this.nextPlayer.cancelled) {
-		const player = this.meta.currentPlayer;
-		player.traits.renegeCard = null;
-		const index = ((Object.values(this.players).find(player1 => player1 === this.meta.currentPlayer).index + (this.meta.traits.clockwise ? 1 : -1)) + Object.keys(this.players).length) % Object.keys(this.players).length;
-		this.meta.currentPlayer = Object.values(this.players).find(player2 => player2.index === index);
-		this.meta.currentPlayer.traits.renegeCard = null; // Just in case
-
-		//this.ctx.drawImage();
-
+		this.meta.currentPlayer.traits.renegeCard = null;
+		this.meta.currentPlayer = Object.values(this.players).find(player2 => player2.index === ((this.meta.currentPlayer.index + (this.meta.traits.clockwise ? 1 : -1)) + Object.keys(this.players).length) % Object.keys(this.players).length);
 		this.resetTimeLimit();
 		//}
 		//this.events.emit("nextPlayer", Core.phases.END);
@@ -429,12 +402,11 @@ export default class baseUno extends Core {
 		const leftPlayer = Object.values(this.players).find(player => player.index === (this.meta.currentPlayer.index-1+Object.keys(this.players).length)%Object.keys(this.players).length);
 		this.renderTable().then(() => {
 			display.setTitle(`Current Discarded Card: ${this.piles.discard.cards[0].name}`)
-			   //.setThumbnail(this.meta.currentPlayer.member.user.displayAvatarURL())
-			   .attachFiles(new Discord.MessageAttachment(this.canvas.toBuffer(), "game.png"))
-			   .setDescription(`It is currently ${this.meta.currentPlayer.member.displayName}'s turn${this.piles.discard.cards[0].id.startsWith("w") && this.piles.discard.cards.length > 1 ? `\n**Current Color: ${{r: "Red", g: "Green", b: "Blue", y: "Yellow"}[this.piles.discard.cards[0].traits.color]}**` : ""}${this.piles.discard.cards[0].traits.owner ? "\n**Type `!challenge` to challenge or `!next` to take the extra cards**" : ""}${this.meta.rules.stacking && this.piles.draw.traits.drawNum ? `\n**${this.piles.draw.traits.drawNum} Cards stacked to draw**` : ""}`)
+			   .attachFiles(new Discord.MessageAttachment(this.render.canvas.toBuffer(), "game.png"))
+			   .setDescription(`It is currently ${this.meta.currentPlayer.member.displayName}'s turn${this.piles.discard.cards[0].id.startsWith("w") && this.piles.discard.cards.length > 1 ? `\n**Current Color: ${{r: "Red", g: "Green", b: "Blue", y: "Yellow"}[this.piles.discard.cards[0].traits.color]}**` : ""}${this.piles.discard.cards[0].traits.owner ? "\n**Type `!challenge` to challenge or `!draw` to take the extra cards**" : ""}${this.meta.rules.stacking && this.piles.draw.traits.drawNum ? `\n**${this.piles.draw.traits.drawNum} Cards stacked to draw**` : ""}`)
 			   .addField(`${leftPlayer.member.displayName} ${this.meta.traits.clockwise ? `-> **${this.meta.currentPlayer.member.displayName}** ->` : `<- **${this.meta.currentPlayer.member.displayName}** <-`} ${rightPlayer.member.displayName}`, this.meta.actionHistory.slice(-2).reverse().join("\n"))
-			   .setColor(this.piles.discard.cards[0].id.startsWith("w") ? {r: "#D40000", g: "#2CA05A", b: "#2A7FFF", y: "#FFCC00", w: "#A100FF"}[this.piles.discard.cards[0].traits.color] : {6: "#71FF00", 5: "#BDFF00", 4: "#F1DF00", 3: "#FF9800", 2: "#FF4C00", 1: "#FF1400", 0: "#A100FF"}[Object.values(this.players).reduce((acc, player) => {return Math.min(acc, player.cards.length)}, 7).toString()] || "#26FF00")
-			   .setImage("attachment://game.png"/*this.piles.discard.cards[0].image || "https://i.ibb.co/BwSXYnV/unknown.png"*/)
+			   .setColor(this.piles.discard.cards[0].id.startsWith("w") ? {r: "#D40000", g: "#2CA05A", b: "#2A7FFF", y: "#FFCC00", w: "#A100FF"}[this.piles.discard.cards[0].traits.color] : ["#A100FF", "#FF1400", "#FF4C00", "#FF9800", "#F1DF00", "#BDFF00", "#71FF00", "#26FF00"][Object.values(this.players).reduce((acc, player) => Math.min(acc, player.cards.length), 7)])
+			   .setImage("attachment://game.png")
 			   .setFooter(Object.values(this.players).reduce((acc, player) => {return acc += `${player.member.displayName}: ${player.cards.length} card${Core.plural(player.cards.length)}${(this.meta.rules.points || this.meta.rules.altPoints) ? ` + ${player.traits.points} point${Core.plural(player.traits.points)}, ` : ", "}`}, "").slice(0, -2));
 			   this.meta.channel.send(display);
 		});
@@ -442,18 +414,6 @@ export default class baseUno extends Core {
 		//this.events.emit("updateUI", Core.phases.END, display);
 		/*if (!this.updateUI.cancelled) */ 
 		//this.updateUI.cancelled = false;
-	}
-
-	/**@param {Discord.GuildMember} member - The member to generate a Player for */
-	addPlayer(member) {
-		const player = this.genDefaultPlayer(member);
-		//this.events.emit("addPlayer", Core.phases.START, player);
-		//if (!this.addPlayer.cancelled) {
-		this.players[member.id] = player;
-		if (this.meta.phase >= 2) player.cards = this.piles.draw.cards.splice(0, this.meta.traits.startingCards);
-		//}
-		//this.events.emit("addPlayer", Core.phases.END, player);
-		//this.addPlayer.cancelled = false;
 	}
 
 	/**@param {Player} player - The Player to remove from the game */
@@ -464,43 +424,58 @@ export default class baseUno extends Core {
 		Core.shuffle(this.piles.draw.cards);
 		this.meta.deletePlayer = player.member.id;
 		if (player === this.meta.currentPlayer) this.nextPlayer();
+		Object.values(this.players).forEach(player2 => {
+			if (player2.index > player.index) player2.index--;
+		});
 		delete this.players[player.member.id];
+		this.drawStatic().then(() => this.updateUI());
 		//}
 		//this.events.emit("removePlayer", Core.phases.END, player);
 		//this.removePlayer.cancelled = false;
 	}
 
-	/**
-	 * Render everything which can change visually during a game.
-	 */
 	renderTable() {
-		this.ctx.drawImage(this._canvas, 0, 0);
+		this.render.ctx.drawImage(this.render._canvas, 0, 0);
 		const players = Object.values(this.players);
-		this.ctx.drawImage(this.meta.images.halo, 300*Math.cos(2*Math.PI*this.meta.currentPlayer.index/players.length-Math.PI)+330, 200*Math.sin(2*Math.PI*this.meta.currentPlayer.index/players.length-Math.PI)+200);
-		players.forEach(player => {
-			const loc = {x: 300*Math.cos(2*Math.PI*player.index/players.length-Math.PI), y: 200*Math.sin(2*Math.PI*player.index/players.length-Math.PI)};
-			this.ctx.fillText(player.cards.length.toString(), loc.x + 480, loc.y + 241);
-			this.ctx.strokeText(player.cards.length.toString(), loc.x + 480, loc.y + 241);
-		});
+		this.render.ctx.drawImage(this.render.images.halo, 300*Math.cos(2*Math.PI*this.meta.currentPlayer.index/players.length-Math.PI)+330, 200*Math.sin(2*Math.PI*this.meta.currentPlayer.index/players.length-Math.PI)+200);
+		players.forEach(player => this.render.drawText(player.cards.length.toString(), 300*Math.cos(2*Math.PI*player.index/players.length-Math.PI)+480, 200*Math.sin(2*Math.PI*player.index/players.length-Math.PI)+241));
 		return Canvas.loadImage(this.piles.discard.cards[0].image).then(image => {
-			return this.ctx.drawImage(image, 337, 125, 175, 250);
+			return this.render.ctx.drawImage(image, 337, 125, 175, 250);
 		});
 	}
 
-	/** @param {Player[]} players2 - The list of players' avatars to render */
-	drawStatic(players2) {
+	drawStatic() {
 		const players = Object.values(this.players);
-		return Canvas.loadImage("images/uno/icon.png").then(image => {
+		return super.drawStatic().then(() => {
+			return Canvas.loadImage("images/uno/icon.png");
+		}).then(image => {
 			players.forEach(player => {
 				const loc = {x: 300*Math.cos(2*Math.PI*player.index/players.length-Math.PI), y: 200*Math.sin(2*Math.PI*player.index/players.length-Math.PI)};
-				this.ctx.drawImage(image, loc.x + 430, loc.y + 210);
+				this.render.ctx.drawImage(image, loc.x + 430, loc.y + 210);
 				if (this.meta.rules.points || this.meta.rules.altPoints) {
-					this.ctx.fillText(`${player.traits.points} Pts`, loc.x + 430, loc.y + 285);
-					this.ctx.strokeText(`${player.traits.points} Pts`, loc.x + 430, loc.y + 285);
+					this.render.drawText(`${player.traits.points} Pts`, loc.x + 430, loc.y + 285);
 				}
 			});
-			return super.drawStatic(players2);
+			this.saveCanvas();
 		});
+	}
+
+	/**
+	 * @param {Player[]} players - the player(s) to display their cards to.
+	 */
+	dealCards(players) {
+		if (players.length === 0) return;
+		const player = players.pop();
+		if (player.member.user.bot) return this.dealCards(players); // I use the bot to test things. Makes sure that this doesn't error
+		const hand = new Discord.MessageEmbed()
+			.setTitle("Your Hand:")
+			.setDescription(player.cards.sort((card1, card2) => {
+				if (card1.id === "w4") return card2.id === "w4" ? 0 : -1;
+				if (card1.id === "ww") return card2.id === "w4" ? 1 : (card2.id === "ww" ? 0 : -1);
+				return card1.id < card2.id ? -1 : (card1.id > card2.id ? 1 : 0);
+			}).map(card => `${card.id}: ${card.name}`).join("\n"))
+			.setColor(Math.floor(Math.random() * 16777215));
+		player.member.send(hand).then(this.dealCards(players));
 	}
 
 	/**
@@ -514,19 +489,16 @@ export default class baseUno extends Core {
 	 * @returns {boolean} If the cards matched
 	 */
 	match(card1, card2, args, player) {
-		/**
-		 * Your match function should return [boolean, boolean]
-		 * 
-		 * [can card match, could card still match even if your function returns false for the first value]
-		 * @type {Array<Boolean[]>}
-		 */
-		let canMatch = [];
 		//this.events.emit("match", Core.phases.START, card1, card2, args, player, canMatch);
-		/*if (!this.match.cancelled) */canMatch.push([card1.id.startsWith(card2.id.substring(0,1)) || card1.id.substring(1) === card2.id.substring(1) || card1.id.startsWith("w") || card1.id.startsWith(card2.traits.color) || card2.traits.color === "w",
-			(!player || !args || ((!player.traits.renegeCard || player.traits.renegeCard === card1) && (!this.meta.rules.zSCards || card1.id.substring(1) !== "7" || (this.players[args[1]?.replace(/<@!?(\d*)>/, "$1")] && args[1]?.replace(/<@!?(\d*)>/, "$1") !== player.member.id)) && (!card1.id.startsWith("w") || ["red", "r", "green", "g", "blue", "b", "yellow", "y"].includes(args[1]))))]);
+		/*if (!this.match.cancelled) */
+		return card1.id.startsWith(card2.id.substring(0,1))
+			|| card1.id.substring(1) === card2.id.substring(1)
+			|| card1.id.startsWith("w")
+			|| card1.id.startsWith(card2.traits.color)
+			|| card2.traits.color === "w";
 		//this.events.emit("match", Core.phases.END, card1, card2, args, player, canMatch);
 		//this.match.cancelled = false;
-		return canMatch.some(match => match[0]) && canMatch.every(match => match[1]);
+		//return canMatch.some(match => match[0]) && canMatch.every(match => match[1]);
 	}
 
 	/**
@@ -535,14 +507,27 @@ export default class baseUno extends Core {
 	checkPlayersOneCardNoUno() {
 		//this.events.emit("OCNU", Core.phases.start);
 		//if (!this.checkPlayersOneCardNoUno.cancelled) {
-		const sneaky = Object.values(this.players).find(player => player.traits.oneCardNoUno);
-		if (sneaky) {
-			sneaky.traits.oneCardNoUno = false;
-			this.meta.actionHistory.push(`${sneaky.member.displayName} got away without saying uno!`);
+		const sneaky = Object.values(this.players).filter(player => player.traits.oneCardNoUno);
+		if (sneaky.length) {
+			sneaky.forEach(player => player.traits.oneCardNoUno = false);
+			this.meta.actionHistory.push(`${sneaky.map(player => player.member.displayName).join(" and ")} got away without saying uno!`);
 		}
 		//}
 		//this.events.emit("OCNU", Core.phases.END);
 		//this.checkPlayersOneCardNoUno.cancelled = false;
+	}
+
+	/**
+	 * Sets the currentPlayer to the player who is discarding (really only necessary if jumpIn is true)
+	 * @param {Player} player - The player who is discarding
+	 */
+	setToCurrentPlayer(player) {
+		if (player !== this.meta.currentPlayer) { // Only possible if jumpIn is true, and they had a matching card
+			this.meta.currentPlayer.traits.renegeCard = null;
+			this.meta.currentPlayer = player;
+			return "jumped in with";
+		}
+		return "discarded";
 	}
 
 	/**
@@ -572,7 +557,7 @@ export default class baseUno extends Core {
 		//this.events.emit("draw", Core.phases.MIDDLE, player, pile, numCards, newCards);
 		//if (!this.draw.cancelled) {
 		player.cards = player.cards.concat(newCards);
-		Core.dealCards([player]);
+		this.dealCards([player]);
 		//}
 		//this.events.emit("draw", Core.phases.END, player, pile, numCards, newCards);
 		//this.draw.cancelled = false;
