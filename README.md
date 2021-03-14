@@ -1,5 +1,5 @@
 # Card Bot
-Modular Discord Card Game Bot
+Discord Card Game Bot
 
 See [the wiki](https://github.com/Bedrockbreaker/unobot/wiki) for how to use
 
@@ -12,7 +12,7 @@ See [the wiki](https://github.com/Bedrockbreaker/unobot/wiki) for how to use
 * Phase 10
 
 ### v3.6.0
-* Three Dragon Ante
+* Mille Bornes
 
 ### v3.7.0
 * Uno variations (uno flip, etc.)
