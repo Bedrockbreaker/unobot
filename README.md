@@ -5,9 +5,6 @@ See [the wiki](https://github.com/Bedrockbreaker/unobot/wiki) for how to use
 
 ## Road Map
 
-### v3.5.0
-* Phase 10
-
 ### v3.6.0
 * Mille Bornes
 
