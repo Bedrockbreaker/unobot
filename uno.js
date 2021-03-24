@@ -5,7 +5,7 @@ import {Core, Player, Pile, Card} from "./core.js";
 /** 
  * The base implementation of uno
  * @class baseUno
-*/
+ */
 export default class baseUno extends Core {
 	/**@param {Discord.GuildChannel} channel - The channel to send updates to*/
 	constructor(channel) {
@@ -46,7 +46,7 @@ export default class baseUno extends Core {
 		//this.events.emit("start", Core.phases.START);
 		//if (!this.start.cancelled) {
 		if (Object.keys(this.players).length < 2) return this.meta.channel.send("Not enough players!");
-		if (Object.keys(this.meta.rules).length) this.meta.ruleReactor.stop();
+		if (this.meta.phase < 2) this.getRules(); // Because start() can be called multiple times
 		this.meta.phase = 2;
 		this.randomizePlayerOrder();
 		this.piles.draw = new Pile();
@@ -102,7 +102,7 @@ export default class baseUno extends Core {
 			const url = "images/uno/";
 			for (let k = 0; k < Math.ceil(Object.keys(this.players).length * this.meta.traits.startingCards / 28); k++) {
 				for (let i = 0; i < 4; i++) {
-					cards.push(new Card("ww", "Wild", `${url}ww.png`, {}), new Card("w4", "Wild Draw 4", `${url}w4.png`), new Card(`${c[i]}0`, `${colors[i]} 0`, `${url}${c[i]}0.png`),
+					cards.push(new Card("ww", "Wild", `${url}ww.png`), new Card("w4", "Wild Draw 4", `${url}w4.png`), new Card(`${c[i]}0`, `${colors[i]} 0`, `${url}${c[i]}0.png`),
 						new Card(`${c[i]}d`, `${colors[i]} Draw 2`, `${url}${c[i]}d.png`), new Card(`${c[i]}d`, `${colors[i]} Draw 2`, `${url}${c[i]}d.png`),
 						new Card(`${c[i]}s`, `${colors[i]} Skip`, `${url}${c[i]}s.png`), new Card(`${c[i]}s`, `${colors[i]} Skip`, `${url}${c[i]}s.png`),
 						new Card(`${c[i]}r`, `${colors[i]} Reverse`, `${url}${c[i]}r.png`), new Card(`${c[i]}r`, `${colors[i]} Reverse`, `${url}${c[i]}r.png`));
@@ -395,12 +395,13 @@ export default class baseUno extends Core {
 	}
 
 	updateUI() {
-		const display = new Discord.MessageEmbed();
 		//this.events.emit("updateUI", Core.phases.START, display);
 		//if (!this.updateUI.cancelled) {
-		const rightPlayer = Object.values(this.players).find(player => player.index === (this.meta.currentPlayer.index+1)%Object.keys(this.players).length);
-		const leftPlayer = Object.values(this.players).find(player => player.index === (this.meta.currentPlayer.index-1+Object.keys(this.players).length)%Object.keys(this.players).length);
-		this.renderTable().then(() => {
+		this.renderTable();
+		this.render.queue(() => {
+			const display = new Discord.MessageEmbed();
+			const rightPlayer = Object.values(this.players).find(player => player.index === (this.meta.currentPlayer.index+1)%Object.keys(this.players).length);
+			const leftPlayer = Object.values(this.players).find(player => player.index === (this.meta.currentPlayer.index-1+Object.keys(this.players).length)%Object.keys(this.players).length);
 			display.setTitle(`Current Discarded Card: ${this.piles.discard.cards[0].name}`)
 			   .attachFiles(new Discord.MessageAttachment(this.render.canvas.toBuffer(), "game.png"))
 			   .setDescription(`It is currently ${this.meta.currentPlayer.member.displayName}'s turn${this.piles.discard.cards[0].id.startsWith("w") && this.piles.discard.cards.length > 1 ? `\n**Current Color: ${{r: "Red", g: "Green", b: "Blue", y: "Yellow"}[this.piles.discard.cards[0].traits.color]}**` : ""}${this.piles.discard.cards[0].traits.owner ? "\n**Type `!challenge` to challenge or `!draw` to take the extra cards**" : ""}${this.meta.rules.stacking && this.piles.draw.traits.drawNum ? `\n**${this.piles.draw.traits.drawNum} Cards stacked to draw**` : ""}`)
@@ -408,8 +409,9 @@ export default class baseUno extends Core {
 			   .setColor(this.piles.discard.cards[0].id.startsWith("w") ? {r: "#D40000", g: "#2CA05A", b: "#2A7FFF", y: "#FFCC00", w: "#A100FF"}[this.piles.discard.cards[0].traits.color] : ["#A100FF", "#FF1400", "#FF4C00", "#FF9800", "#F1DF00", "#BDFF00", "#71FF00", "#26FF00"][Object.values(this.players).reduce((acc, player) => Math.min(acc, player.cards.length), 7)])
 			   .setImage("attachment://game.png")
 			   .setFooter(Object.values(this.players).reduce((acc, player) => {return acc += `${player.member.displayName}: ${player.cards.length} card${Core.plural(player.cards.length)}${(this.meta.rules.points || this.meta.rules.altPoints) ? ` + ${player.traits.points} point${Core.plural(player.traits.points)}, ` : ", "}`}, "").slice(0, -2));
-			   this.meta.channel.send(display);
+			return this.meta.channel.send(display);
 		});
+		this.render.flush();
 		//}
 		//this.events.emit("updateUI", Core.phases.END, display);
 		/*if (!this.updateUI.cancelled) */ 
@@ -435,34 +437,28 @@ export default class baseUno extends Core {
 	}
 
 	renderTable() {
-		this.render.ctx.drawImage(this.render._canvas, 0, 0);
+		this.render.queue(() => this.render.drawImage(this.render._canvas, 0, 0));
 		const players = Object.values(this.players);
-		this.render.ctx.drawImage(this.render.images.halo, 300*Math.cos(2*Math.PI*this.meta.currentPlayer.index/players.length-Math.PI)+330, 200*Math.sin(2*Math.PI*this.meta.currentPlayer.index/players.length-Math.PI)+200);
+		this.render.queue(() => this.render.drawImage(this.render.images.halo, 300*Math.cos(2*Math.PI*this.meta.currentPlayer.index/players.length-Math.PI)+330, 200*Math.sin(2*Math.PI*this.meta.currentPlayer.index/players.length-Math.PI)+200));
 		players.forEach(player => this.render.drawText(player.cards.length.toString(), 300*Math.cos(2*Math.PI*player.index/players.length-Math.PI)+480, 200*Math.sin(2*Math.PI*player.index/players.length-Math.PI)+241));
-		return Canvas.loadImage(this.piles.discard.cards[0].image).then(image => {
-			return this.render.ctx.drawImage(image, 337, 125, 175, 250);
-		});
+		this.render.queue(() => Canvas.loadImage(this.piles.discard.cards[0].image).then(image => this.render.ctx.drawImage(image, 337, 125, 175, 250)));
 	}
 
 	drawStatic() {
-		const players = Object.values(this.players);
-		return super.drawStatic().then(() => {
-			return Canvas.loadImage("images/uno/icon.png");
-		}).then(image => {
-			players.forEach(player => {
-				const loc = {x: 300*Math.cos(2*Math.PI*player.index/players.length-Math.PI), y: 200*Math.sin(2*Math.PI*player.index/players.length-Math.PI)};
-				this.render.ctx.drawImage(image, loc.x + 430, loc.y + 210);
-				if (this.meta.rules.points || this.meta.rules.altPoints) {
-					this.render.drawText(`${player.traits.points} Pts`, loc.x + 430, loc.y + 285);
-				}
+		super.drawStatic();
+		this.render.queue(() => {
+			Canvas.loadImage("images/uno/icon.png").then(image => {
+				const players = Object.values(this.players);
+				players.forEach(player => {
+					const loc = {x: 300*Math.cos(2*Math.PI*player.index/players.length-Math.PI), y: 200*Math.sin(2*Math.PI*player.index/players.length-Math.PI)};
+					this.render.ctx.drawImage(image, loc.x + 430, loc.y + 210);
+					if (this.meta.rules.points || this.meta.rules.altPoints) this.render.drawTextNow(`${player.traits.points} Pts`, loc.x + 430, loc.y + 285);
+				});
 			});
-			this.saveCanvas();
-		});
+		}, () => this.saveCanvas());
 	}
 
-	/**
-	 * @param {Player[]} players - the player(s) to display their cards to.
-	 */
+	/** @param {Player[]} players - the player(s) to display their cards to. */
 	dealCards(players) {
 		if (players.length === 0) return;
 		const player = players.pop();
@@ -470,9 +466,9 @@ export default class baseUno extends Core {
 		const hand = new Discord.MessageEmbed()
 			.setTitle("Your Hand:")
 			.setDescription(player.cards.sort((card1, card2) => {
-				if (card1.id === "w4") return card2.id === "w4" ? 0 : -1;
-				if (card1.id === "ww") return card2.id === "w4" ? 1 : (card2.id === "ww" ? 0 : -1);
-				return card1.id < card2.id ? -1 : (card1.id > card2.id ? 1 : 0);
+				if (card1.id === "w4" || card2.id === "w4") return card1.id === "w4" ? -1 : 1;
+				if (card1.id === "ww" || card2.id === "ww") return card1.id === "ww" ? -1 : 1;
+				return card1.id < card2.id ? -1 : (card1.id > card2.id);
 			}).map(card => `${card.id}: ${card.name}`).join("\n"))
 			.setColor(Math.floor(Math.random() * 16777215));
 		player.member.send(hand).then(this.dealCards(players));

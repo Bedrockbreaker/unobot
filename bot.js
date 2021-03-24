@@ -6,6 +6,7 @@ import {Core, Player, Pile, Card} from "./core.js"; // Pile and Card are importe
 import baseUno from "./uno.js";
 import baseExkit from "./exkit.js";
 import baseWiki from "./wiki.js";
+import basePhase from "./phase.js";
 
 const bot = new Discord.Client();
 const {createCanvas, loadImg} = Canvas;
@@ -32,11 +33,9 @@ bot.on("message", async msg => {
 	/**@type {Core} */
 	const serverGame = guild ? globalGames.get(guild.id) : null;
 	if (msg.content.startsWith("!")) {
-		// TODO: allow discord admin to always be leaders.
-		const isLeader = serverGame?.players[member.id]?.isLeader;
+		const isLeader = serverGame?.players[member.id]?.isLeader || (member instanceof Discord.GuildMember ? member.hasPermission("MANAGE_CHANNELS") : false);
 		if (serverGame && serverGame.meta.timeLimit > 0 && serverGame.meta.phase > 2) serverGame.resetTimeLimit();
 		switch (args[0].substr(1).toLowerCase()) {
-			// TODO: reorganize the placement of each command in the code.
 			// TODO: add a command which saves the current rule settings as the default for next games. (Only available for discord admin.)
 			case "help":
 				channel.send("https://github.com/Bedrockbreaker/unobot/wiki");
@@ -49,9 +48,6 @@ bot.on("message", async msg => {
 				if (args.length === 1) return channel.send("Usage: `!(p|play) 𝘨𝘢𝘮𝘦`. Playable games: `uno`, `explodingKittens`");
 				let newGame;
 				switch (args.slice(1).join(" ").toLowerCase()) {
-					case "uno":
-						newGame = new baseUno(channel);
-						break;
 					case "exploding":
 					case "kittens":
 					case "explodingkittens":
@@ -59,6 +55,17 @@ bot.on("message", async msg => {
 					case "exkit":
 					case "ek":
 						newGame = new baseExkit(channel);
+						break;
+					case "phase":
+					case "phase10":
+					case "phase 10":
+					case "phaseten":
+					case "phase ten":
+					case "p10":
+						newGame = new basePhase(channel);
+						break;
+					case "uno":
+						newGame = new baseUno(channel);
 						break;
 					case "wiki":
 					case "wikipedia":
@@ -98,6 +105,14 @@ bot.on("message", async msg => {
 				}
 				serverGame.start();
 				break;
+			case "v":
+			case "vote":
+				if (!serverGame) return channel.send("Usage: `!(v|vote)`. Toggles voting on deciding active game rules. Type `!play` to begin playing a game.");
+				if (!isLeader) return channel.send("Only the leader can start the game!");
+				if (serverGame.meta.phase >= 2) return channel.send("The game has already started!");
+				serverGame.meta.voting = !serverGame.meta.voting;
+				channel.send(`Voting ${serverGame.meta.voting ? "enabled!" : "disabled!"}`);
+				break;
 			case "quit":
 				if (!serverGame) return channel.send("Usage: `!quit`. Quit from a game you have currently joined. Start a game with `!play`");
 				if (!serverGame.players.hasOwnProperty(member.id)) return channel.send("You can't quit from a game you haven't joined!");
@@ -122,6 +137,7 @@ bot.on("message", async msg => {
 				break;
 			case "tl":
 			case "timelimit":
+				return channel.send("Unimplemented!");
 				if (!serverGame) return channel.send("Usage: `!(tl|timelimit) 𝘯𝘶𝘮`. Changes the turn time limit to *num* seconds. If set to 0, the time limit is disabled. Start a game with `!play`");
 				if (!isLeader) return channel.send("Only the leader can change that!");
 				if (isNaN(Number(args[1]))) return channel.send(args[1] === undefined ? "Please specify a number!" : `\`${args[1]}\` is not a valid number!`);
@@ -149,6 +165,18 @@ bot.on("message", async msg => {
 		}
 	}
 	if (member.id === "224285881383518208") {
+
+		const me = serverGame?.players[member.id]; // For console use
+		const it = serverGame?.players[bot.user.id];
+		const debugDisplay = () => {
+			const embed = new Discord.MessageEmbed()
+				.setTitle("Debug")
+				.setDescription("Display")
+				.attachFiles(new Discord.MessageAttachment(serverGame.render.canvas.toBuffer(), "game.png"))
+				.setImage("attachment://game.png");
+			channel.send(embed);
+		}
+
 		switch(args[0]) {
 			case "log":
 				try {

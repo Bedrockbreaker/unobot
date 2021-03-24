@@ -19,27 +19,21 @@ export default class baseExkit extends Core {
 		super("Exploding Kittens", channel, rules, {removePercent: 0, extraTurns: 0, clockwise: true});
 	}
 
-	setup () {
-		return super.setup();
-	}
-
 	start() {
 		//this.events.emit("start", Core.phases.START);
 		//if (!this.start.cancelled) {
 		if (Object.keys(this.players).length < 2) return this.meta.channel.send("Not enough players!");
-		if (Object.keys(this.meta.rules).length) this.meta.ruleReactor.stop();
+		this.getRules();
 		this.meta.phase = 2;
 		if (this.meta.rules.barking) {
-			Canvas.loadImage("images/exkit/tower.png").then(image => {
-				this.render.images.tower = image;
-				return Canvas.loadImage("images/exkit/mouse.png");
-			}).then(image => this.render.images.mouse = image);
+			this.render.queue(() => Canvas.loadImage("images/exkit/tower.png").then(image => this.render.images.tower = image),
+				() => Canvas.loadImage("images/exkit/mouse.png").then(image => this.render.images.mouse = image));
 		}
-		if (this.meta.rules.streaking) Canvas.loadImage("images/exkit/marked.png").then(image => this.render.images.marked = image);
+		if (this.meta.rules.streaking) this.render.queue(() => Canvas.loadImage("images/exkit/marked.png").then(image => this.render.images.marked = image));
 		this.randomizePlayerOrder();
 
 		this.piles.draw = new Pile();
-		this.piles.discard = new Pile([]);
+		this.piles.discard = new Pile();
 		this.deckCreate(this.piles.draw);
 
 		this.meta.currentPlayer = Object.values(this.players).find(player => !player.index);
@@ -47,7 +41,8 @@ export default class baseExkit extends Core {
 		this.dealCards(Object.values(this.players));
 		this.render.ctx.fillStyle = "#FFFFFF";
 		this.meta.channel.send(`Play order: ${Object.values(this.players).sort((player1, player2) => player1.index - player2.index).reduce((acc, player) => {return `${acc}${player.member.displayName}, `}, "").slice(0,-2)}\nGo to <https://github.com/Bedrockbreaker/unobot/wiki/Exploding-Kittens> for Exploding Kittens-specifc commands.`);
-		if (!Object.values(this.players).reduce((acc, player) => {return acc+player.traits.points},0)) super.start().then(() => this.updateUI());
+		super.start();
+		this.updateUI();
 		this.resetTimeLimit();
 		//}
 		//this.events.emit("start", Core.phases.END);
@@ -1021,10 +1016,11 @@ export default class baseExkit extends Core {
 	}
 
 	updateUI() {
-		const display = new Discord.MessageEmbed();
 		//const rightPlayer = Object.values(this.players).find(player => player.index === (this.meta.currentPlayer.index+1)%Object.keys(this.players).length);
 		//const leftPlayer = Object.values(this.players).find(player => player.index === (this.meta.currentPlayer.index-1+Object.keys(this.players).length)%Object.keys(this.players).length);
-		this.renderTable().then(() => {
+		this.renderTable();
+		this.render.queue(() => {
+			const display = new Discord.MessageEmbed();
 			const deathclock = this.piles.draw.cards.findIndex(card => card.id === "ik" && card.traits.up);
 			display.setTitle(`It is currently ${this.meta.currentPlayer.member.displayName}'s turn`)
 			   .attachFiles(new Discord.MessageAttachment(this.render.canvas.toBuffer(), "game.png"))
@@ -1033,15 +1029,16 @@ export default class baseExkit extends Core {
 			   .setColor([Math.max(0, Math.min(255, -510*(this.piles.draw.cards.length/this.piles.draw.traits.total - 1))), Math.max(0, Math.min(255, 510*this.piles.draw.cards.length/this.piles.draw.traits.total)), 0])
 			   .setImage("attachment://game.png")
 			   .setFooter(`${this.piles.draw.cards.length} Card${Core.plural(this.piles.draw.cards.length)} Remaining${deathclock !== -1 && deathclock <= Math.max(5, Object.keys(this.players).length)? ` · Cards until Imploding Kitten: ${deathclock}` : ""}${this.meta.traits.extraTurns ? ` · Turns left: ${this.meta.traits.extraTurns + 1}` : ""}`);
-			this.meta.channel.send(display);
+			return this.meta.channel.send(display);
 		});
+		this.render.flush();
 	}
 
 	/**@param {Player} player - The player to remove from the game*/
 	removePlayer(player) {
 		this.meta.traits.copy = null; // yes, this can theoretically make a card "un-nopable," but I don't care enough to fix that
 		this.meta.traits.message = null;
-		this.piles.discard.cards = this.piles.discard.cards.concat(player.cards);
+		this.piles.discard.cards = this.piles.discard.cards.concat(player.cards); // TODO: make iks and eks render on top (sort them to the top)
 		this.meta.deletePlayer = player.member.id;
 		if (this.meta.traits.extraTurns) { // If the player died with extra turns left
 			this.meta.traits.extraTurns = 0;
@@ -1059,9 +1056,9 @@ export default class baseExkit extends Core {
 	}
 
 	renderTable() {
-		this.render.ctx.drawImage(this.render._canvas, 0, 0);
+		this.render.queue(() => this.render.drawImage(this.render._canvas, 0, 0));
 		const players = Object.values(this.players);
-		if (this.piles.draw.cards[0]?.traits.up) Canvas.loadImage(this.piles.draw.cards[0].image).then(image => this.render.ctx.drawImage(image, 237, 125, 175, 250));
+		if (this.piles.draw.cards[0]?.traits.up) this.render.queue(() => Canvas.loadImage(this.piles.draw.cards[0].image).then(image => this.render.ctx.drawImage(image, 237, 125, 175, 250)));
 		let lastPromise = new Promise((res, rej) => res());
 		for (let j = 0; j < players.length; j++) {
 			const player = players[j];
@@ -1071,53 +1068,45 @@ export default class baseExkit extends Core {
 			// Marked cards rendering
 			const marked = player.cards.filter(card => card.traits.marked);
 			marked.forEach((card, i) => {
-				Canvas.loadImage(card.image).then(image => {
+				this.render.queue(() => Canvas.loadImage(card.image).then(image => {
 					this.render.ctx.drawImage(image, x + 432 + (marked.length > 1 ? 40*i/(marked.length-1) : 0), y + 255, 40, 57);
 					this.render.ctx.drawImage(this.render.images.marked, x + 432 + (marked.length > 1 ? 40*i/(marked.length-1) : 0), y + 255, 40, 57);
-					if (card.traits.pair >= 0 && Object.keys(this.players).length > 5 + (this.meta.rules.imploding ? 1 : 0)) this.render.drawText(card.traits.pair, x + 442 + (marked.length > 1 ? 40*i/(marked.length-1) : 0), y + 245);
-				});
+					if (card.traits.pair >= 0 && Object.keys(this.players).length > 5 + (this.meta.rules.imploding ? 1 : 0)) this.render.drawTextNow(card.traits.pair, x + 442 + (marked.length > 1 ? 40*i/(marked.length-1) : 0), y + 245);
+				}));
 			});
 			// Tower rendering
 			if (player.traits.top) {
-				this.render.ctx.drawImage(this.render.images.tower, x+330, y+200);
+				this.render.queue(() => this.render.ctx.drawImage(this.render.images.tower, x+330, y+200));
 				this.render.drawText(player.traits.top.cards.length, x+340, y+290);
 				if (Object.keys(this.players).length > 5 + (this.meta.rules.imploding ? 1 : 0)) this.render.drawText(player.traits.top.traits.pair, x+400, y+290);
 			}
 			// Barking Kitten rendering (if the player discarded one too early)
 			if (player.traits.mouse) {
-				this.render.ctx.drawImage(this.render.images.mouse, x+330, y+200);
+				this.render.queue(() => this.render.ctx.drawImage(this.render.images.mouse, x+330, y+200));
 				if (Object.keys(this.players).length > 5 + (this.meta.rules.imploding ? 1 : 0)) this.render.drawText(player.traits.mouse.traits.pair, x+340, y+240);
 			}
 			// I'll Take That rendering
 			if (player.traits.bully) lastPromise = Canvas.loadImage(player.traits.bully.hidden.bully.member.user.displayAvatarURL({format: "png", size: 32})).then(image => this.render.ctx.drawImage(image, x+380, y+210, 40, 40));
 		}
-		this.render.ctx.drawImage(this.render.images.halo, 300*Math.cos(2*Math.PI*this.meta.currentPlayer.index/players.length-Math.PI)+330, 200*Math.sin(2*Math.PI*this.meta.currentPlayer.index/players.length-Math.PI)+200);
-		return lastPromise.then(() => Canvas.loadImage(this.piles.discard.cards[0]?.image || "images/exkit/discardpileghost.png").then(image => {
-			this.render.ctx.font = "32px Arial";
-			this.render.drawText(`${this.piles.draw.cards.length} Cards`, 260, 320);
-
+		this.render.queue(() => this.render.ctx.drawImage(this.render.images.halo, 300*Math.cos(2*Math.PI*this.meta.currentPlayer.index/players.length-Math.PI)+330, 200*Math.sin(2*Math.PI*this.meta.currentPlayer.index/players.length-Math.PI)+200));
+		this.render.queue(() => Canvas.loadImage(this.piles.discard.cards[0]?.image || "images/exkit/discardpileghost.png").then(image => {
+			this.render.drawTextNow(`${this.piles.draw.cards.length} Cards`, 260, 320, "32px Arial");
 			this.render.ctx.drawImage(image, 437, 125, 175, 250);
-			if (this.piles.discard.cards[0]?.traits.pair >= 0 && Object.keys(this.players).length > 5 + (this.meta.rules.imploding ? 1 : 0)) {
-				this.render.ctx.font = "54px Arial";
-				this.render.drawText(this.piles.discard.cards[0].traits.pair, 568, 208);
-				this.render.ctx.font = "40px Arial";
-			}
+			if (this.piles.discard.cards[0]?.traits.pair >= 0 && Object.keys(this.players).length > 5 + (this.meta.rules.imploding ? 1 : 0)) this.render.drawTextNow(this.piles.discard.cards[0].traits.pair, 568, 208, "54px Arial");
 		}));
 	}
 
 	drawStatic() {
-		return super.drawStatic().then(() => {
-			return Canvas.loadImage("images/exkit/back.png");
-		})
-		.then(image => {
-			this.render.ctx.drawImage(image, 237, 125, 175, 250);
-			return Canvas.loadImage("images/exkit/icon.png");
-		})
-		.then(image => {
-			const players = Object.values(this.players);
-			players.forEach(player => this.render.ctx.drawImage(image, 300*Math.cos(2*Math.PI*player.index/players.length-Math.PI)+432, 200*Math.sin(2*Math.PI*player.index/players.length-Math.PI)+210));
-			this.saveCanvas();
-		});
+		super.drawStatic();
+		this.render.queue(() => Canvas.loadImage("images/exkit/back.png").then(image => this.render.ctx.drawImage(image, 237, 125, 175, 250)),
+			() => {
+				Canvas.loadImage("images/exkit/icon.png").then(image => {
+					const players = Object.values(this.players);
+					players.forEach(player => this.render.ctx.drawImage(image, 300*Math.cos(2*Math.PI*player.index/players.length-Math.PI)+432, 200*Math.sin(2*Math.PI*player.index/players.length-Math.PI)+210));
+				});
+			},
+			() => this.saveCanvas()
+		);
 	}
 
 	/**

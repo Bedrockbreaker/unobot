@@ -36,6 +36,8 @@ class Core {
 			actionHistory: actionHistory,
 			/** List of optional rules. Initialize with a string array, is later replaced with whether those rules are active or not */
 			rules: rules,
+			/** Whether voting is allowed to determine which rules are active*/
+			voting: false,
 			/** An object used to define any custom traits of the game */
 			traits: traits,
 			/** The member id of the player to remove from the game */
@@ -52,6 +54,9 @@ class Core {
 		/** The events emitter used for mods */
 		//this.events = new events.EventEmitter();
 	}
+
+	// TODO: move the util commands into their own class
+	// TODO: make a function which returns an "empty promise" (useful for rendering)
 
 	// credit to trincot on stackoverflow https://stackoverflow.com/questions/40291987/javascript-deep-clone-object-with-circular-references
 	/**
@@ -182,43 +187,35 @@ class Core {
 	 * @returns {boolean} Whether the game had any rules which were displayed
 	 */
 	displayRules() {
-		// TODO: add a voting system, keeping this as well. Default to leader only, but the leader may open it up to voting, or public voting (the entire server can vote, not just those in the game).
-		// TODO: remove vote when emoji is removed ("un-reactioned").
 		const rules = Object.keys(this.meta.rules);
 		if (!rules.length) return false;
-		// If there are custom rules...
 		const rulesEmbed = new Discord.MessageEmbed()
 			.setTitle("What rules is this game being played by?\n(respond by submitting reaction emojis)")
-			.setDescription(`**When you are done changing the rules, type \`!start\`\nCommands for Playing: https://github.com/Bedrockbreaker/unobot/wiki/${this.meta.title.replace(/ /g, "-")}**`)
+			.setDescription(`**When you are done changing the rules, type \`!start\`\n**[Commands for Playing](https://github.com/Bedrockbreaker/unobot/wiki/${this.meta.title.replace(/ /g, "-")})`)
 			.setColor(Math.floor(Math.random() * 16777215) + 1);
 		for (let i = 0; i < rules.length; i++) {
 			rulesEmbed.addField(this.meta.rules[rules[i]][0], this.meta.rules[rules[i]][1]);
 		}
 		rulesEmbed.addField("Vote below by reacting with emojis!", "↓");
-		this.meta.channel.send(rulesEmbed)
-			.then(message => {
-				this.meta.rulesEmbed = message;
-				addReaction(message, this.meta.rules, 0);
-			})
-			.then(() => {
-				this.meta.ruleReactor = this.meta.rulesEmbed.createReactionCollector((reaction, member) => {
-					return Object.values(this.meta.rules).map(rule => rule[2]).includes(reaction.emoji.name) && member.id === Object.values(this.players).find(player => player.isLeader).member.id;
-				});
-				this.meta.ruleReactor.on("end", collection => {
-					const ruleBools = Object.values(this.meta.rules).map(rule => collection.map(reaction => reaction.emoji.name).includes(rule[2]));
-					for (let i in ruleBools) {
-						this.meta.rules[rules[i]] = ruleBools[i];
-					}
-				});
-			});
+		this.meta.channel.send(rulesEmbed).then(message => {
+			this.meta.rulesEmbed = message;
+			addReaction(message, this.meta.rules, 0);
+		});
 		return true;
+	}
+
+	getRules() {
+		const ruleEmojis = Object.values(this.meta.rules).map(rule => rule[2]);
+		const rules = Object.keys(this.meta.rules).filter(key => this.meta.rules[key][2]);
+		const pLength = Object.keys(this.players).length;
+		this.meta.rulesEmbed.reactions.cache.filter(reaction => ruleEmojis.includes(reaction.emoji.name)).map(reaction => reaction.users.cache.reduce((acc, user) => acc + ((this.meta.voting ? this.players[user.id] : this.players[user.id]?.isLeader) ? 1 : 0), 0) >= (this.meta.voting ? pLength / 2 : 1)).forEach((bool, i) => this.meta.rules[rules[i]] = bool);
 	}
 
 	/**
 	 * Registers mods and caches images
 	 */
 	setup() {
-		return Canvas.loadImage("images/halo.png").then(image => this.render.images.halo = image);
+		this.render.queue(() => Canvas.loadImage("images/halo.png").then(image => this.render.images.halo = image));
 	}
 
 	/**
@@ -235,7 +232,7 @@ class Core {
 	 */
 	start() {
 		this.render.ctx.font = "40px Arial";
-		return this.drawStatic();
+		this.drawStatic();
 	}
 
 	/**
@@ -287,7 +284,7 @@ class Core {
 	 * Randomizes the player order within a game
 	 */
 	randomizePlayerOrder() {
-		let indexes = Core.shuffle(Array.from(Array(Object.keys(this.players).length).keys()));
+		let indexes = Core.shuffle([...Array(Object.keys(this.players).length).keys()]);
 		Object.values(this.players).forEach(player => player.index = indexes.pop());
 	}
 
@@ -310,34 +307,40 @@ class Core {
 	 */
 	renderTable() {}
 
-	/**
-	 * Render static images which don't change during the game onto the table
-	 * @param {Player[]} players - The list of players' avatars to render
-	 */
+	/** Render static images which don't change during the game onto the table */
 	drawStatic() {
-		return Canvas.loadImage("images/background.png").then(image => {
-			this.render.ctx.drawImage(image, 0, 0);
-			return this.drawAvatars(Object.values(this.players).sort((player1, player2) => player1.index - player2.index));
+		this.render.queue(() => Canvas.loadImage("images/background.png").then(image => this.render.ctx.drawImage(image, 0, 0)));
+		const pLength = Object.keys(this.players).length;
+		Object.values(this.players).sort((player1, player2) => player1.index - player2.index).forEach(player => {
+			const url = player.member.user.displayAvatarURL({format: "png", size: 64});
+			const loc = player.index/pLength;
+			this.render.queue(() => {
+				return Canvas.loadImage(url).then(image => {
+					this.render.ctx.drawImage(image, 340-300*Math.cos(2*Math.PI*loc), 210-200*Math.sin(2*Math.PI*loc), 80, 80);
+				});
+			});
 		});
 	}
 
 	/**
-	 * Helper method for drawStatic(). Don't manually call
+	 * Helper method for drawStatic()
 	 * @param {Player[]} players - The list of players' avatars to render
 	 */
-	drawAvatars(players) {
-		if (!players.length) return;
-		const pLength = Object.keys(this.players).length;
-		return Canvas.loadImage(players[0].member.user.displayAvatarURL({format: "png", size: 64})).then(image => {
-			this.render.ctx.drawImage(image, 300*Math.cos(2*Math.PI*players[0].index/pLength-Math.PI)+340, 200*Math.sin(2*Math.PI*players[0].index/pLength-Math.PI)+210, 80, 80);
-			return this.drawAvatars(players.slice(1));
-		});
-	}
+	//drawAvatars(players) {
+	//	if (!players.length) return;
+	//	const pLength = Object.keys(this.players).length;
+	//	return Canvas.loadImage(players[0].member.user.displayAvatarURL({format: "png", size: 64})).then(image => {
+	//		this.render.ctx.drawImage(image, , , 80, 80);
+	//		return this.drawAvatars(players.slice(1));
+	//	});
+	//}
 
+	/** Saves a copy of the canvas with static-only elements */
 	saveCanvas() {
 		this.render._canvas = Canvas.createCanvas(this.render.canvas.width, this.render.canvas.height);
 		this.render._ctx = this.render._canvas.getContext("2d");
 		this.render._ctx.drawImage(this.render.canvas, 0, 0);
+		return new Promise((resolve, reject) => resolve());
 	}
 
 	/**
@@ -389,6 +392,8 @@ class Core {
 	getPlayers(input) {
 		return Core.getPlayers(Object.values(this.players), input);
 	}
+
+	// TODO: grabCard()
 }
 
 /**
@@ -433,8 +438,12 @@ class Player {
 	 * @returns {Card[]}
 	 */
 	getCards(cardID, traits) {
+		// TODO: accept the arg string instead
 		return Core.getCards(this.cards, cardID, traits);
 	}
+
+	// TODO: grabCard()
+	// player.cards.splice(player.cards.findIndex(card2 => card2 === card), 1)[0]
 }
 
 /**
@@ -459,6 +468,7 @@ class Pile {
 	 * @returns {Card[]}
 	 */
 	getCards(cardID, traits) {
+		// TODO: accept the arg string instead
 		return Core.getCards(this.cards, cardID, traits);
 	}
 }
@@ -509,12 +519,106 @@ class Render {
 		this.ctx = canvas.getContext("2d");
 		/** Cache of images used for rendering */
 		this.images = imagecache;
-		/** Helper function for drawing text with a border */
-		this.drawText = (text, x, y) => {
-			this.ctx.fillText(text, x, y);
-			this.ctx.strokeText(text, x, y);
+
+		/**
+		 * Queue for rendering
+		 * @type {Object<string, Function<Promise<>>>[]}
+		 */
+		this._queue = [];
+
+		/**
+		 * Whether a promise is currently pending in the render queue
+		 */
+		this._promisePending = false;
+	}
+
+	/** 
+	 * Helper function for drawing text with a border. Automatically queues the render.
+	 * @param {string} text - The text to draw
+	 * @param {number} x - The x coordinate, in pixels
+	 * @param {number} y - The y coordinate, in pixels
+	 * @param {?string} font - Optional font
+	 * @param {?string} fillStyle - Optional fill style
+	 * @param {?string} strokeStyle - Optional stroke style
+	 */
+	drawText(text, x, y, font, fillStyle, strokeStyle) {
+		this.queue(() => {
+			return new Promise((resolve, reject) => {
+				this.drawTextNow(text, x, y, font, fillStyle, strokeStyle);
+				resolve();
+			});
+		});
+	}
+
+	/**
+	 * Helper function for drawing text with a border. Does not queue the render
+	 * @param {string} text - The text to draw
+	 * @param {number} x - The x coordinate, in pixels
+	 * @param {number} y - The y coordinate, in pixels
+	 * @param {?string} font - Optional font
+	 * @param {?string} fillStyle - Optional fill style
+	 * @param {?string} strokeStyle - Optional stroke style
+	 */
+	drawTextNow(text, x, y, font = this.ctx.font, fillStyle = this.ctx.fillStyle, strokeStyle = this.ctx.strokeStyle) {
+		[font, this.ctx.font] = [this.ctx.font, font];
+		[fillStyle, this.ctx.fillStyle] = [this.ctx.fillStyle, fillStyle];
+		[strokeStyle, this.ctx.strokeStyle] = [strokeStyle, this.ctx.strokeStyle];
+		this.ctx.fillText(text, x, y);
+		this.ctx.strokeText(text, x, y);
+		[font, this.ctx.font] = [this.ctx.font, font];
+		[fillStyle, this.ctx.fillStyle] = [this.ctx.fillStyle, fillStyle];
+		[strokeStyle, this.ctx.strokeStyle] = [strokeStyle, this.ctx.strokeStyle];
+	}
+
+	/**
+	 * Helper function for drawing an image
+	 * @param {CanvasImageSource} image - The image to render
+	 * @param {number} x - The x pos, in pixels
+	 * @param {number} y - The y pos, in pixels
+	 * @param {number} dx - The width, in pixels
+	 * @param {number} dy - The height, in pixels
+	 * @returns {Promise<void>}
+	 */
+	drawImage(image, x, y, dx, dy) {
+		dx = dx || image.width;
+		dy = dy || image.height;
+		this.ctx.drawImage(image, x, y, dx, dy);
+		return new Promise((resolve, reject) => resolve());
+	}
+
+	/**
+	 * Enqueues a promise to be later rendered.
+	 * @param {Function<Promise<>>[]} promises
+	 */
+	queue(...promises) {
+		promises.forEach(promise => new Promise((resolve, reject) => this._queue.push({promise, resolve, reject})));
+	}
+	
+	/**
+	 * Goes through the render queue, resolving or rejecting each promise until it's empty.
+	 * @returns {boolean}
+	 */
+	flush() {
+		if (this._promisePending) return false;
+		const item = this._queue.shift();
+		if (!item) return false;
+		try {
+			this._promisePending = true;
+			item.promise().then(value => {
+				this._promisePending = false;
+				item.resolve(value);
+				this.flush();
+			}).catch(err => {
+				this._promisePending = false;
+				item.reject(err);
+				this.flush();
+			});
+		} catch (err) {
+			this._promisePending = false;
+			item.reject(err);
+			this.flush();
 		}
-		// TODO: queue system for scheduling rendering, so races can be avoided
+		return true;
 	}
 }
 
