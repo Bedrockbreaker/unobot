@@ -5,16 +5,19 @@ See [the wiki](https://github.com/Bedrockbreaker/unobot/wiki) for how to use
 
 ## Road Map
 
-### v3.6.0
+### v4.1.0
 * Mille Bornes
 
-### v3.7.0
+### v4.2.0
+* Flux, Ramen Fury, Monopoly Deal
+
+### v4.3.0
 * Uno variations (uno flip, etc.)
 
-### v3.8.0
-* Monopoly (test for code stability and expandability)
+### v4.4.0
+* Monopoly (the board game)
 
-### v3.9.0
+### v4.5.0
 * More board games/card games
 * Risk?
 
