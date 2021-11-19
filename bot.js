@@ -50,6 +50,7 @@ bot.once("ready", () => {
 });
 
 bot.on("interactionCreate", async (/**@type {import("discord.js").MessageComponentInteraction} */action) => {
+	if (action.guildId === "458391331023093764" && auth === process.env) return;
 	try {
 		if (action.isCommand()) return handleCommand(action);
 		if (action.isButton()) return handleButton(action);
