@@ -1,5 +1,4 @@
 import {Collection, GuildMember, MessageActionRow, MessageAttachment, MessageButton, MessageComponentInteraction, MessageEmbed, MessageSelectMenu, ThreadChannel} from "discord.js";
-import Canvas from "canvas";
 import {Core, Util, Color, Player, Pile, Card, Setting} from "./core.js";
 
 /**
@@ -80,11 +79,6 @@ export default class basePhase extends Core {
 		"9 cards of one color", "3 sets of 3", "1 set of 4 + 1 run of 6", "1 set of 5 + 1 run of 5", "1 set of 5 + 5 cards of one color",
 		"5 sets of 2", "1 run of 10", "10 cards of one color", "1 run of 5 of odd numbers of one color + 1 run of 5 of even numbers of one color", "1 set of 5 + 1 run of 5 odd numbers",
 		"1 set of 5 + 1 run of 5 even numbers", "1 set of 4 + 1 run of 3 + 1 set of 3 of one color", "1 run of 5 + 1 run of 5 odd numbers of one color", "1 run of 5 + 1 run of 5 even numbers of one color", "2 sets of 5"];
-
-	setup() {
-		super.setup();
-		this.render.queue(() => Canvas.loadImage("images/phase/skip.png").then(image => this.render.images.set("skip", image)));
-	}
 
 	/**
 	 * @param {GuildMember} member - The member to generate a player for
@@ -197,7 +191,6 @@ export default class basePhase extends Core {
 		if (this.players.some(player => player.phase)) this.drawStatic(); // If not first round
 		else super.start(action);
 		this.updateUI(action);
-		//this.resetTimeLimit();
 	}
 
 	/** Creates a deck of cards for the draw pile */
@@ -206,13 +199,12 @@ export default class basePhase extends Core {
 		let cards = [];
 		const c = ["r","g","b","y"];
 		const colors = ["Red", "Green", "Blue", "Yellow"];
-		const url = "images/phase/";
 		for (let k = 0; k < Math.ceil(this.players.size/6); k++) {
 			for (let i = 0; i < 4; i++) {
-				cards.push(new PhaseCard("ww", "Wild", `${url}ww.png`), new PhaseCard("ww", "Wild", `${url}ww.png`), new PhaseCard("sk", "Skip", `${url}sk.png`));
-				if (this.getSetting("reverses")) cards.push(new PhaseCard("re", "Reverse", `${url}re.png`), new PhaseCard("re", "Reverse", `${url}re.png`));
+				cards.push(new PhaseCard("ww", "Wild", `phase/ww.png`), new PhaseCard("ww", "Wild", `phase/ww.png`), new PhaseCard("sk", "Skip", `phase/sk.png`));
+				if (this.getSetting("reverses")) cards.push(new PhaseCard("re", "Reverse", `phase/re.png`), new PhaseCard("re", "Reverse", `phase/re.png`));
 				for (let j = 1; j <= 12; j++) {
-					cards.push(new PhaseCard(`${c[i]}${j}`, `${colors[i]} ${j}`, `${url}${c[i]}${j}.png`), new PhaseCard(`${c[i]}${j}`, `${colors[i]} ${j}`, `${url}${c[i]}${j}.png`));
+					cards.push(new PhaseCard(`${c[i]}${j}`, `${colors[i]} ${j}`, `phase/${c[i]}${j}.png`), new PhaseCard(`${c[i]}${j}`, `${colors[i]} ${j}`, `phase/${c[i]}${j}.png`));
 				}
 			}
 		}
@@ -594,10 +586,9 @@ export default class basePhase extends Core {
 					} else this.meta.actionHistory.push(`**${member.displayName} went out,** winning this round!`);
 				}
 
-				// TODO: update the previous round's display on the last turn
 				this.nextPlayer();
-				if (this.players.every(player3 => player3.cards.length > 0) || this.players.some(player3 => player3.lastStand)) this.updateUI(action);
-				else this.start(action);
+				this.updateUI(action);
+				if (this.players.some(player3 => !player3.cards.length) && this.players.every(player3 => !player3.lastStand)) this.render.queue(() => {this.start(action); return Util.emptyPromise()}); // Flushed from updateUI on the previous line
 				break;
 			}
 		}
@@ -611,7 +602,6 @@ export default class basePhase extends Core {
 			this.nextPlayer();
 		}
 		if (this.players.some(player2 => player2.lastStand) && !player.lastStand) this.nextPlayer();
-		//this.resetTimeLimit();
 	}
 
 	/**
@@ -647,65 +637,60 @@ export default class basePhase extends Core {
 
 	renderTable() {
 		super.renderTable();
-		this.players.forEach(player => {
-			this.render.drawText(player.cards.length, player.x + 135, player.y + 35);
-			this.render.drawText(`${player.score} pts`, player.x + 90, player.y + 80, "24px Arial");
-			if (player.skips) {
-				this.render.queue(() => this.render.drawImage(this.render.images.get("skip"), player.x - 10, player.y - 10));
-				if (player.skips > 1) this.render.drawText(player.skips, player.x + 40, player.y + 35);
-			}
-			if (this.getSetting("selectionType") || this.phases.some((n, i) => n - i)) this.render.drawText(`${player.phase + (player.phased ? 1 : 0)}/${player.phases.length}`, player.x + 135, player.y + 59, "24px Arial");
-			if (player.phased) this.render.drawText(`P${player.phases[player.phase]+1}`, player.x + 90, player.y + 59, "24px Arial", Color.toHexString(Color.White), Color.toHexString(Color.White));
-
-			const runSpace = 165 / player.phasePiles.length - 5; // Space allowed for a phase pile
-			let h = player.x;
-			for (let i = 0; i < player.phasePiles.length; i++) {
-				const pile = player.phasePiles[i];
-				const runCardSpace = Math.min(28, (runSpace - 28) / (pile.cards.length - 1));
-				if (pile.cards.length && pile.type === "run") pile.cards = this.sortRun(pile, pile.cards.sort((card1, card2) => {
-					if (card1.id === "ww" || card2.id === "ww") return card1.id === "ww" ? 1 : -1;
-					return 0;
-				}));
-				pile.cards.forEach((card, i) => {
-					const url = card.image;
-					const a = h + runCardSpace * i;
-					const b = player.y + 90;
-					this.render.queue(() => {
-						return player.phased ? Canvas.loadImage(url).then(image => this.render.drawImageNow(image, a, b, 28, 40)) : this.render.drawImage(this.render.images.get("back"), a, b, 28, 40);
-					});
+		this.render.queue(
+			() => {
+				this.players.forEach(player => {
+					this.render.drawText(player.cards.length, player.x + 135, player.y + 35);
+					this.render.drawText(`${player.score} pts`, player.x + 90, player.y + 80, "24px Arial");
+					if (player.skips) {
+						this.render.drawImage("phase/skip.png", player.x - 10, player.y - 10);
+						if (player.skips > 1) this.render.drawText(player.skips, player.x + 40, player.y + 35);
+					}
+					if (this.getSetting("selectionType") || this.phases.some((n, i) => n - i)) this.render.drawText(`${player.phase + (player.phased ? 1 : 0)}/${player.phases.length}`, player.x + 135, player.y + 59, "24px Arial");
+					if (player.phased) this.render.drawText(`P${player.phases[player.phase]+1}`, player.x + 90, player.y + 59, "24px Arial", Color.toHexString(Color.White), Color.toHexString(Color.White));
+		
+					const runSpace = 165 / player.phasePiles.length - 5; // Space allowed for a phase pile
+					let h = player.x;
+					for (let i = 0; i < player.phasePiles.length; i++) {
+						const pile = player.phasePiles[i];
+						const runCardSpace = Math.min(28, (runSpace - 28) / (pile.cards.length - 1));
+						if (pile.cards.length && pile.type === "run") pile.cards = this.sortRun(pile, pile.cards.sort((card1, card2) => {
+							if (card1.id === "ww" || card2.id === "ww") return card1.id === "ww" ? 1 : -1;
+							return 0;
+						}));
+						pile.cards.forEach((card, i) => this.render.drawImage(player.phased ? card.image : "phase/back.png", h + runCardSpace * i, player.y + 90, 28, 40));
+						if (player.phased) {
+							const cardID = pile.cards.findIndex(card => card.id !== "ww");
+							const mult = pile.evens || pile.evens === false ? 2 : 1;
+							const start = Number(pile.cards[cardID].id.slice(1)) - cardID * mult; // Only used for if the pile is a run
+							const text = pile.type === "run" ? `${pile.evens ? "E" : (pile.evens === false ? "O" : "")}${start}-${start + (pile.cards.length - 1) * mult}` : `${pile.type === "set" ? pile.cards[cardID].id.slice(1) : pile.cards[cardID].id.slice(0, 1).toUpperCase()}`;
+							this.render.ctx.font = "37px Arial";
+							const width = this.render.ctx.measureText(text).width;
+							this.render.ctx.font = "40px Arial";
+							this.render.drawText(text, h + (runSpace - width) / 2, player.y + 125, "37px Arial", Color.toHexString(Color.Black), pile.color || pile.type === "col" ? {r: "#e10000", g: "#00b600", b: "#221bb3", y: "#ffde00"}[pile.cards[cardID].id.slice(0, 1)] : Color.toHexString(Color.White));
+						}
+						h += runSpace + 5;
+					}
 				});
-				if (player.phased) {
-					const cardID = pile.cards.findIndex(card => card.id !== "ww");
-					const mult = pile.evens || pile.evens === false ? 2 : 1;
-					const start = Number(pile.cards[cardID].id.slice(1)) - cardID * mult; // Only used for if the pile is a run
-					const text = pile.type === "run" ? `${pile.evens ? "E" : (pile.evens === false ? "O" : "")}${start}-${start + (pile.cards.length - 1) * mult}` : `${pile.type === "set" ? pile.cards[cardID].id.slice(1) : pile.cards[cardID].id.slice(0, 1).toUpperCase()}`;
-					this.render.ctx.font = "37px Arial";
-					const width = this.render.ctx.measureText(text).width; // Measured outside of the queue, because otherwise the measurement would be using the 40px font size
-					this.render.ctx.font = "40px Arial";
-					this.render.drawText(text, h + (runSpace - width) / 2, player.y + 125, "37px Arial", Color.toHexString(Color.Black), pile.color || pile.type === "col" ? {r: "#e10000", g: "#00b600", b: "#221bb3", y: "#ffde00"}[pile.cards[cardID].id.slice(0, 1)] : Color.toHexString(Color.White));
-				}
-				h += runSpace + 5;
-			}
-		});
-
-		this.render.queue(() => Canvas.loadImage(this.piles.get("discard").cards[0]?.image || "images/discardpileghost.png").then(image => this.render.drawImageNow(image, 230, 120, 183, 261)));
+				return Util.emptyPromise();
+			},
+			() => this.render.drawImage(this.piles.get("discard").cards[0]?.image || "common/discardpileghost.png", 230, 120, 183, 261)
+		);
 	}
 
 	drawStatic() {
 		super.drawStatic();
-		this.render.queue(() => {
-			return Canvas.loadImage("images/phase/back.png").then(image => {
-				this.render.images.set("back", image);
-				this.render.drawImageNow(image, 438, 120, 183, 261);
-			});
-		}, () => {
-			return Canvas.loadImage("images/phase/icon.png").then(image => {
+		this.render.queue(
+			() => this.render.drawImageNow("phase/back.png", 438, 120, 183, 261),
+			() => {
 				this.players.forEach(player => {
-					this.render.drawImageNow(image, player.x + 90, player.y);
-					this.render.drawTextNow(`P${player.phases[player.phase]+1}`, player.x + 90, player.y + 59, "24px Arial", Color.toHexString(Color.Black));
+					this.render.drawImage("phase/icon.png", player.x + 90, player.y);
+					this.render.drawText(`P${player.phases[player.phase]+1}`, player.x + 90, player.y + 59, "24px Arial", Color.toHexString(Color.Black));
 				});
-			});
-		}, () => this.saveCanvas());
+				return Util.emptyPromise();
+			},
+			() => this.saveCanvas()
+		);
 	}
 
 	/**
@@ -1000,8 +985,8 @@ export default class basePhase extends Core {
 			this.nextPlayer();
 		}
 
-		if (this.players.every(player3 => player3.cards.length > 0) || this.players.some(player3 => player3.lastStand)) this.updateUI(action);
-		else this.start(action);
+		this.updateUI(action);
+		if (this.players.some(player3 => !player3.cards.length) && this.players.every(player3 => !player3.lastStand)) this.render.queue(() => {this.start(action); return Util.emptyPromise()}); // Flushed from updateUI on the previous line
 	}
 
 	/**

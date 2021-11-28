@@ -76,19 +76,9 @@ export default class baseExkit extends Core {
 	start(action) {
 		if (this.players.size < 2) return action.reply({content: "Not enough players", ephemeral: true});
 		this.getSettings();
+		if (this.players.size > 5 + this.getSetting("imploding")) return action.reply({content: "Sorry, but Kittens Inc. Ltd.:tm::copyright::registered: hasn't manufactured enough IEDs for this game.\nPlease drag someone out against their will and shoot them before they appeal to your emotions.", ephemeral: true});
+		
 		this.meta.phase = 2;
-		if (this.getSetting("barking")) {
-			this.render.queue(
-				() => Canvas.loadImage("images/exkit/tower.png").then(image => this.render.images.set("tower", image)),
-				() => Canvas.loadImage("images/exkit/mouse.png").then(image => this.render.images.set("mouse", image))
-			);
-		}
-		if (this.getSetting("streaking")) {
-			this.render.queue(
-				() => Canvas.loadImage("images/exkit/marked.png").then(image => this.render.images.set("marked", image)),
-				() => Canvas.loadImage("images/exkit/cursed.png").then(image => this.render.images.set("cursed", image))
-			);
-		}
 		this.randomizePlayerOrder();
 
 		this.piles.set("draw", new ExkitPile(this.deckCreate()));
@@ -108,78 +98,72 @@ export default class baseExkit extends Core {
 	deckCreate() {
 		/** @type {ExkitCard[]} */
 		let cards = [];
-		const url = "images/exkit/";
 		const maxSet = 5 + (this.getSetting("imploding") ? 1 : 0);
-		for (let i = 0; i < this.players.size; i += maxSet) {
-			const set = Math.min(maxSet, this.players.size - i);
-			cards.push(new ExkitCard("at", "Attack", `${url}at.png`), new ExkitCard("at", "Attack", `${url}at.png`), new ExkitCard("at", "Attack", `${url}at.png`), new ExkitCard("at", "Attack", `${url}at.png`),
-				new ExkitCard("sp", "Skip", `${url}sp.png`), new ExkitCard("sp", "Skip", `${url}sp.png`), new ExkitCard("sp", "Skip", `${url}sp.png`), new ExkitCard("sp", "Skip", `${url}sp.png`),
-				new ExkitCard("sf", "See the Future", `${url}sf.png`), new ExkitCard("sf", "See the Future", `${url}sf.png`), new ExkitCard("sf", "See the Future", `${url}sf.png`), new ExkitCard("sf", "See the Future", `${url}sf.png`), new ExkitCard("sf", "See the Future", `${url}sf.png`),
-				new ExkitCard("sh", "Shuffle", `${url}sh.png`), new ExkitCard("sh", "Shuffle", `${url}sh.png`), new ExkitCard("sh", "Shuffle", `${url}sh.png`), new ExkitCard("sh", "Shuffle", `${url}sh.png`),
-				new ExkitCard("fv", "Favor", `${url}fv.png`), new ExkitCard("fv", "Favor", `${url}fv.png`), new ExkitCard("fv", "Favor", `${url}fv.png`), new ExkitCard("fv", "Favor", `${url}fv.png`),
-				new ExkitCard("no", "Nope", `${url}no.png`), new ExkitCard("no", "Nope", `${url}no.png`), new ExkitCard("no", "Nope", `${url}no.png`), new ExkitCard("no", "Nope", `${url}no.png`), new ExkitCard("no", "Nope", `${url}no.png`),
-				new ExkitCard("tc", "Taco Cat", `${url}tc.png`),  new ExkitCard("tc", "Taco Cat", `${url}tc.png`), new ExkitCard("tc", "Taco Cat", `${url}tc.png`), new ExkitCard("tc", "Taco Cat", `${url}tc.png`),
-				new ExkitCard("mc", "Melon Cat", `${url}mc.png`), new ExkitCard("mc", "Melon Cat", `${url}mc.png`), new ExkitCard("mc", "Melon Cat", `${url}mc.png`), new ExkitCard("mc", "Melon Cat", `${url}mc.png`),
-				new ExkitCard("pc", "Hairy Potato Cat", `${url}pc.png`), new ExkitCard("pc", "Hairy Potato Cat", `${url}pc.png`), new ExkitCard("pc", "Hairy Potato Cat", `${url}pc.png`), new ExkitCard("pc", "Hairy Potato Cat", `${url}pc.png`),
-				new ExkitCard("bc", "Beard Cat", `${url}bc.png`), new ExkitCard("bc", "Beard Cat", `${url}bc.png`), new ExkitCard("bc", "Beard Cat", `${url}bc.png`), new ExkitCard("bc", "Beard Cat", `${url}bc.png`),
-				new ExkitCard("rc", "Rainbow Ralphing Cat", `${url}rc.png`), new ExkitCard("rc", "Rainbow Ralphing Cat", `${url}rc.png`), new ExkitCard("rc", "Rainbow Ralphing Cat", `${url}rc.png`), new ExkitCard("rc", "Rainbow Ralphing Cat", `${url}rc.png`));
-			for (let j = 0; j < Math.max(2, 6 - set); j++) {
-				cards.push(new ExkitCard("de", "Defuse", `${url}de.png`));
-			}
-			if (this.getSetting("imploding")) {
-				cards.push(new ExkitCard("re", "Reverse", `${url}re.png`), new ExkitCard("re", "Reverse", `${url}re.png`), new ExkitCard("re", "Reverse", `${url}re.png`), new ExkitCard("re", "Reverse", `${url}re.png`),
-					new ExkitCard("db", "Draw from the Bottom", `${url}db.png`), new ExkitCard("db", "Draw from the Bottom", `${url}db.png`), new ExkitCard("db", "Draw from the Bottom", `${url}db.png`), new ExkitCard("db", "Draw from the Bottom", `${url}db.png`),
-					new ExkitCard("fc", "Feral Cat", `${url}fc.png`), new ExkitCard("fc", "Feral Cat", `${url}fc.png`), new ExkitCard("fc", "Feral Cat", `${url}fc.png`), new ExkitCard("fc", "Feral Cat", `${url}fc.png`),
-					new ExkitCard("af", "Alter the Future", `${url}af.png`), new ExkitCard("af", "Alter the Future", `${url}af.png`), new ExkitCard("af", "Alter the Future", `${url}af.png`), new ExkitCard("af", "Alter the Future", `${url}af.png`),
-					new ExkitCard("ta", "Targeted Attack", `${url}ta.png`), new ExkitCard("ta", "Targeted Attack", `${url}ta.png`), new ExkitCard("ta", "Targeted Attack", `${url}ta.png`));
-			}
-			if (this.getSetting("streaking")) {
-				cards.push(new ExkitCard("sk", "Streaking Kitten", `${url}sk.png`),
-					new ExkitCard("ss", "Super Skip", `${url}ss.png`),
-					new ExkitCard("s5", "See the Future **x5**", `${url}s5.png`),
-					new ExkitCard("a5", "Alter the Future **x5**", `${url}a5.png`),
-					new ExkitCard("sw", "Swap Top and Bottom", `${url}sw.png`), new ExkitCard("sw", "Swap Top and Bottom", `${url}sw.png`), new ExkitCard("sw", "Swap Top and Bottom", `${url}sw.png`),
-					new ExkitCard("gc", "Garbage Collection", `${url}gc.png`),
-					new ExkitCard("cb", "Catomic Bomb", `${url}cb.png`),
-					new ExkitCard("mk", "Mark", `${url}mk.png`), new ExkitCard("mk", "Mark", `${url}mk.png`), new ExkitCard("mk", "Mark", `${url}mk.png`),
-					new ExkitCard("cc", "Curse of the Cat Butt", `${url}cc.png`), new ExkitCard("cc", "Curse of the Cat Butt", `${url}cc.png`));
-			}
-			if (this.getSetting("barking")) {
-				cards.push(new ExkitCard("bk", "Barking Kitten", `${url}bk.png`, i/maxSet), new ExkitCard("bk", "Barking Kitten", `${url}bk.png`, i/maxSet),
-					new ExkitCard("an", "Alter the Future **Now**", `${url}an.png`), new ExkitCard("an", "Alter the Future **Now**", `${url}an.png`),
-					new ExkitCard("br", "Bury", `${url}br.png`), new ExkitCard("br", "Bury", `${url}br.png`),
-					new ExkitCard("pa", "Personal Attack", `${url}pa.png`), new ExkitCard("pa", "Personal Attack", `${url}pa.png`), new ExkitCard("pa", "Personal Attack", `${url}pa.png`), new ExkitCard("pa", "Personal Attack", `${url}pa.png`),
-					new ExkitCard("ss", "Super Skip", `${url}ss.png`),
-					new ExkitCard("pl", "Potluck", `${url}pl.png`), new ExkitCard("pl", "Potluck", `${url}pl.png`),
-					new ExkitCard("tt", "I'll Take That", `${url}tt.png`), new ExkitCard("tt", "I'll Take That", `${url}tt.png`), new ExkitCard("tt", "I'll Take That", `${url}tt.png`), new ExkitCard("tt", "I'll Take That", `${url}tt.png`),
-					new ExkitCard("hf", "Share the Future", `${url}hf.png`), new ExkitCard("hf", "Share the Future", `${url}hf.png`));
-			}
+
+		cards.push(new ExkitCard("at", "Attack", `exkit/at.png`), new ExkitCard("at", "Attack", `exkit/at.png`), new ExkitCard("at", "Attack", `exkit/at.png`), new ExkitCard("at", "Attack", `exkit/at.png`),
+			new ExkitCard("sp", "Skip", `exkit/sp.png`), new ExkitCard("sp", "Skip", `exkit/sp.png`), new ExkitCard("sp", "Skip", `exkit/sp.png`), new ExkitCard("sp", "Skip", `exkit/sp.png`),
+			new ExkitCard("sf", "See the Future", `exkit/sf.png`), new ExkitCard("sf", "See the Future", `exkit/sf.png`), new ExkitCard("sf", "See the Future", `exkit/sf.png`), new ExkitCard("sf", "See the Future", `exkit/sf.png`), new ExkitCard("sf", "See the Future", `exkit/sf.png`),
+			new ExkitCard("sh", "Shuffle", `exkit/sh.png`), new ExkitCard("sh", "Shuffle", `exkit/sh.png`), new ExkitCard("sh", "Shuffle", `exkit/sh.png`), new ExkitCard("sh", "Shuffle", `exkit/sh.png`),
+			new ExkitCard("fv", "Favor", `exkit/fv.png`), new ExkitCard("fv", "Favor", `exkit/fv.png`), new ExkitCard("fv", "Favor", `exkit/fv.png`), new ExkitCard("fv", "Favor", `exkit/fv.png`),
+			new ExkitCard("no", "Nope", `exkit/no.png`), new ExkitCard("no", "Nope", `exkit/no.png`), new ExkitCard("no", "Nope", `exkit/no.png`), new ExkitCard("no", "Nope", `exkit/no.png`), new ExkitCard("no", "Nope", `exkit/no.png`),
+			new ExkitCard("tc", "Taco Cat", `exkit/tc.png`),  new ExkitCard("tc", "Taco Cat", `exkit/tc.png`), new ExkitCard("tc", "Taco Cat", `exkit/tc.png`), new ExkitCard("tc", "Taco Cat", `exkit/tc.png`),
+			new ExkitCard("mc", "Melon Cat", `exkit/mc.png`), new ExkitCard("mc", "Melon Cat", `exkit/mc.png`), new ExkitCard("mc", "Melon Cat", `exkit/mc.png`), new ExkitCard("mc", "Melon Cat", `exkit/mc.png`),
+			new ExkitCard("pc", "Hairy Potato Cat", `exkit/pc.png`), new ExkitCard("pc", "Hairy Potato Cat", `exkit/pc.png`), new ExkitCard("pc", "Hairy Potato Cat", `exkit/pc.png`), new ExkitCard("pc", "Hairy Potato Cat", `exkit/pc.png`),
+			new ExkitCard("bc", "Beard Cat", `exkit/bc.png`), new ExkitCard("bc", "Beard Cat", `exkit/bc.png`), new ExkitCard("bc", "Beard Cat", `exkit/bc.png`), new ExkitCard("bc", "Beard Cat", `exkit/bc.png`),
+			new ExkitCard("rc", "Rainbow Ralphing Cat", `exkit/rc.png`), new ExkitCard("rc", "Rainbow Ralphing Cat", `exkit/rc.png`), new ExkitCard("rc", "Rainbow Ralphing Cat", `exkit/rc.png`), new ExkitCard("rc", "Rainbow Ralphing Cat", `exkit/rc.png`));
+		for (let j = 0; j < Math.max(2, 6 - set); j++) {
+			cards.push(new ExkitCard("de", "Defuse", `exkit/de.png`));
 		}
+		if (this.getSetting("imploding")) {
+			cards.push(new ExkitCard("re", "Reverse", `exkit/re.png`), new ExkitCard("re", "Reverse", `exkit/re.png`), new ExkitCard("re", "Reverse", `exkit/re.png`), new ExkitCard("re", "Reverse", `exkit/re.png`),
+				new ExkitCard("db", "Draw from the Bottom", `exkit/db.png`), new ExkitCard("db", "Draw from the Bottom", `exkit/db.png`), new ExkitCard("db", "Draw from the Bottom", `exkit/db.png`), new ExkitCard("db", "Draw from the Bottom", `exkit/db.png`),
+				new ExkitCard("fc", "Feral Cat", `exkit/fc.png`), new ExkitCard("fc", "Feral Cat", `exkit/fc.png`), new ExkitCard("fc", "Feral Cat", `exkit/fc.png`), new ExkitCard("fc", "Feral Cat", `exkit/fc.png`),
+				new ExkitCard("af", "Alter the Future", `exkit/af.png`), new ExkitCard("af", "Alter the Future", `exkit/af.png`), new ExkitCard("af", "Alter the Future", `exkit/af.png`), new ExkitCard("af", "Alter the Future", `exkit/af.png`),
+				new ExkitCard("ta", "Targeted Attack", `exkit/ta.png`), new ExkitCard("ta", "Targeted Attack", `exkit/ta.png`), new ExkitCard("ta", "Targeted Attack", `exkit/ta.png`));
+		}
+		if (this.getSetting("streaking")) {
+			cards.push(new ExkitCard("sk", "Streaking Kitten", `exkit/sk.png`),
+				new ExkitCard("ss", "Super Skip", `exkit/ss.png`),
+				new ExkitCard("s5", "See the Future **x5**", `exkit/s5.png`),
+				new ExkitCard("a5", "Alter the Future **x5**", `exkit/a5.png`),
+				new ExkitCard("sw", "Swap Top and Bottom", `exkit/sw.png`), new ExkitCard("sw", "Swap Top and Bottom", `exkit/sw.png`), new ExkitCard("sw", "Swap Top and Bottom", `exkit/sw.png`),
+				new ExkitCard("gc", "Garbage Collection", `exkit/gc.png`),
+				new ExkitCard("cb", "Catomic Bomb", `exkit/cb.png`),
+				new ExkitCard("mk", "Mark", `exkit/mk.png`), new ExkitCard("mk", "Mark", `exkit/mk.png`), new ExkitCard("mk", "Mark", `exkit/mk.png`),
+				new ExkitCard("cc", "Curse of the Cat Butt", `exkit/cc.png`), new ExkitCard("cc", "Curse of the Cat Butt", `exkit/cc.png`));
+		}
+		if (this.getSetting("barking")) {
+			cards.push(new ExkitCard("bk", "Barking Kitten", `exkit/bk.png`), new ExkitCard("bk", "Barking Kitten", `exkit/bk.png`),
+				new ExkitCard("an", "Alter the Future **Now**", `exkit/an.png`), new ExkitCard("an", "Alter the Future **Now**", `exkit/an.png`),
+				new ExkitCard("br", "Bury", `exkit/br.png`), new ExkitCard("br", "Bury", `exkit/br.png`),
+				new ExkitCard("pa", "Personal Attack", `exkit/pa.png`), new ExkitCard("pa", "Personal Attack", `exkit/pa.png`), new ExkitCard("pa", "Personal Attack", `exkit/pa.png`), new ExkitCard("pa", "Personal Attack", `exkit/pa.png`),
+				new ExkitCard("ss", "Super Skip", `exkit/ss.png`),
+				new ExkitCard("pl", "Potluck", `exkit/pl.png`), new ExkitCard("pl", "Potluck", `exkit/pl.png`),
+				new ExkitCard("tt", "I'll Take That", `exkit/tt.png`), new ExkitCard("tt", "I'll Take That", `exkit/tt.png`), new ExkitCard("tt", "I'll Take That", `exkit/tt.png`), new ExkitCard("tt", "I'll Take That", `exkit/tt.png`),
+				new ExkitCard("hf", "Share the Future", `exkit/hf.png`), new ExkitCard("hf", "Share the Future", `exkit/hf.png`));
+		}
+
 		Util.shuffle(cards);
 		for (let i = 0; i < cards.length * this.getSetting("removePercent") / 100; i++) {
 			const card = cards.pop();
-			if (card.id === "bk") { // Because we don't want a game with only 1 barking kitten
-				cards.splice(cards.findIndex(card2 => card2.pair === card.pair), 1);
-				i++;
-			}
+			if (card.id !== "bk") continue;
+			// Because we don't want a game with only 1 barking kitten
+			cards.splice(cards.findIndex(card2 => card2.id === "bk"), 1);
+			i++;
 		}
 		if (this.getSetting("barking")) {
-			for (let i = 0; i < this.players.size; i += maxSet) {
-				this.piles.set(`top${i/maxSet}`, new ExkitPile(cards.splice(0, 6), i/maxSet));
-			}
-			for (let i = 0; i < this.players.size; i += maxSet) {
-				cards.push(new ExkitCard("tp", "Tower of Power", `${url}tp.png`, i/maxSet));
-			}
+			this.piles.set("ToP", new ExkitPile(cards.splice(0, 6)));
+			cards.push(new ExkitCard("tp", "Tower of Power", `exkit/tp.png`));
 			Util.shuffle(cards);
 		}
-		this.players.forEach(player => player.cards.push(...cards.splice(0, 7), new ExkitCard("de", "Defuse", `${url}de.png`)));
+		this.players.forEach(player => player.cards.push(...cards.splice(0, 7), new ExkitCard("de", "Defuse", `exkit/de.png`)));
 
 		for (let i = 0; i < this.players.size + (this.getSetting("streaking") ? 0 : -1); i++) {
-			cards.push(new ExkitCard("ek", "Exploding Kitten", `${url}ek.png`));
+			cards.push(new ExkitCard("ek", "Exploding Kitten", `exkit/ek.png`));
 		}
 		for (let i = 0; i < this.players.size; i += maxSet) {
 			if (this.getSetting("imploding")) {
-				cards.push(new ExkitCard("ik", "Imploding Kitten", `${url}ik.png`));
+				cards.push(new ExkitCard("ik", "Imploding Kitten", `exkit/ik.png`));
 				if (this.players.size > 2) cards.splice(cards.findIndex(card => card.id === "ek"), 1); // Removes an exploding kitten
 			}
 		}
@@ -232,7 +216,7 @@ export default class baseExkit extends Core {
 					for (let i = 0; i < max; i++) {
 						drawPile.cards[i] = topCards[order[i]];
 					}
-					const cardnames = drawPile.cards.slice(0, max).map(card => `${card.name}${card.pair !== null && this.players.size > 5 + this.getSetting("imploding") ? ` (Pair: ${card.pair})` : ""}`).join(", ");
+					const cardnames = drawPile.cards.slice(0, max).map(card => card.name).join(", ");
 					player.messages = [`Successfully set the new order: ${cardnames}`];
 					if (discardNeedsInput.id === "hf") {
 						const player2 = this.players.find(player2 => player2.index === (player.index + (this.clockwise ? 1 : -1) + this.players.size) % this.players.size);
@@ -259,7 +243,7 @@ export default class baseExkit extends Core {
 				for (let i = 0; i < max; i++) {
 					if (nums.includes(i)) continue;
 					const card = drawPile.cards[i];
-					row.addComponents(new MessageButton().setCustomId(`game buildfuture ${nums.join(" ")} ${i}`).setLabel(`${card.name}${card.pair !== null && this.players.size > 5 + this.getSetting("imploding") ? ` (Pair: ${card.pair})` : ""}`).setStyle("PRIMARY"));
+					row.addComponents(new MessageButton().setCustomId(`game buildfuture ${nums.join(" ")} ${i}`).setLabel(card.name).setStyle("PRIMARY"));
 				}
 				Util.update(action, display);
 				break;
@@ -282,19 +266,7 @@ export default class baseExkit extends Core {
 							.setOptions(player.cards.slice().filter(card => !["ek", "ik", "sk"].includes(card.id)).sort((card1, card2) => {
 								if (card1.id === "de" || card2.id === "de") return card1.id === "de" ? -1 : 1;
 								return card1.name < card2.name ? -1 : (card1.name > card2.name);
-							}).map(card => {
-								const propValues = [];
-								const propDescs = [];
-								if (card.marked) {
-									propValues.push("marked");
-									propDescs.push("Marked");
-								}
-								if (card.pair !== null && this.players.size > 5 + this.getSetting("imploding")) {
-									propValues.push(`pair:${card.pair}`);
-									propDescs.push(`Pair: ${card.pair}`);
-								}
-								return {label: card.name, description: propDescs.join("・"), value: `${card.id}${propValues.length ? `.${propValues.join(",")}` : ""} ${this.cardCounter}`};
-							}))
+							}).map(card => ({label: card.name, description: card.marked ? "Marked" : "", value: `${card.id}${card.marked ? ".marked" : ""} ${this.cardCounter}`})))
 							.setMinValues(Number(args[1]))
 							.setMaxValues(Number(args[1]))),
 						new MessageActionRow().addComponents(new MessageButton().setCustomId("hand 0 true").setLabel("Cancel").setStyle("SECONDARY"))
@@ -358,9 +330,9 @@ export default class baseExkit extends Core {
 								// If there's a mix of marked and non marked cards
 								if (marked.length !== player2.cards.length) rows[0].components[0].addOptions({label: "Random", description: "Any card from their hand", value: "*"}, {label: "Random Non-Marked Card", description: "Any card from their hand which isn't marked", value: "*.marked:false"});
 								if (marked.length > 2) rows[0].components[0].addOptions({label: "Random Marked Card", description: "Any card from their hand which is marked", value: "*.marked"});
-								rows[0].components[0].addOptions(marked.map(card => ({label: card.name, description: card.pair !== null && this.players.size > 5 + this.getSetting("imploding") ? `Pair: ${card.pair}` : "", value: `${card.id}${card.pair !== null && this.players.size > 5 + this.getSetting("imploding") ? `.pair:${card.pair},marked` : ".marked"} ${this.cardCounter}`})));
+								rows[0].components[0].addOptions(marked.map(card => ({label: card.name, value: `${card.id}.marked ${this.cardCounter}`})));
 								return Util.update(action, {content: `Specify a card to steal from ${player2.member.displayName}`, components: rows, ephemeral: true});
-							} else card2 = player2.grabCard(player2.getCards(`${args[7]}${args[7]?.split(".")[1].length ? "," : "."}marked`)[0] || player2.cards[Math.floor(Math.random()*player2.cards.length)]);
+							} else card2 = player2.grabCard(player2.getCards(`${args[7]}${["*", "any"].includes(args[7]?.split(".")[0]) ? "" : `${args[7]?.split(".").length > 1 ? "," : "."}marked`}`)[0] || player2.cards[Math.floor(Math.random()*player2.cards.length)]);
 							this.removeCard(player2, card2);
 							player2.messages = [`${member.displayName} stole a ${card2.name}`];
 							player2.ping = true;
@@ -458,7 +430,7 @@ export default class baseExkit extends Core {
 								rows.push(new MessageActionRow().addComponents(new MessageSelectMenu()
 									.setCustomId(`${i} ${args.join(" ")}`)
 									.setPlaceholder(`Cards ${i*25+1}${i*25 === discardPile.cards.length ? "" : `-${(i+1)*25}`}`)
-									.addOptions(discardPile.cards.slice(i*25, (i+1)*25).map((card, k) => ({label: card.name, description: card.pair !== null && this.players.size > 5 + this.getSetting("imploding") ? `Pair: ${card.pair}` : "", value: `${k+i*25}`})))))
+									.addOptions(discardPile.cards.slice(i*25, (i+1)*25).map((card, k) => ({label: card.name, value: `${k+i*25}`})))))
 							}
 							rows.push(new MessageActionRow().addComponents(new MessageButton().setCustomId("hand 0 true").setLabel("Cancel").setStyle("SECONDARY")));
 							return Util.update(action, {content: `Specify a card to take back from the discard pile`, components: rows, ephemeral: true});
@@ -548,20 +520,11 @@ export default class baseExkit extends Core {
 					const cursedCard = player.cards.find(card2 => card2.cursed);
 					if (!cursedCard && !card.marked) {
 						card = player.cards[Math.floor(Math.random()*player.cards.length)];
-						const hasPair = card.pair !== null && this.players.size < 5 + (this.getSetting("imploding") ? 1 : 0);
-						const props = `${card.marked || hasPair ? " (" : ""}${card.marked ? "marked" : ""}${card.marked && hasPair ? ", " : ""}${hasPair ? `pair: ${card.pair}` : ""}${card.marked || hasPair ? ") " : ""}`;
 						card.cursed = true;
-						player.messages = [`You discarded a ${card.name}${props.length ? props : " "}`];
-						// Overflows into main card logic
+						player.messages = [`You discarded a ${card.name}${card.marked ? " (Marked)" : ""}`];
 					} else if (card !== cursedCard) {
-						if (card.id === cursedCard.id) {
-							card = cursedCard;
-						} else {
-							const hasPair = card.pair !== null && this.players.size < 5 + (this.getSetting("imploding") ? 1 : 0);
-							const props = `${card.marked || hasPair ? " (" : ""}${card.marked ? "marked" : ""}${card.marked && hasPair ? ", " : ""}${hasPair ? `pair: ${card.pair}` : ""}${card.marked || hasPair ? ") " : ""}`;
-							player.messages = [`You must discard a ${card.name}${props.length ? props : " "}next`];
-							// Overflows into main card logic
-						}
+						if (card.id === cursedCard.id) card = cursedCard;
+						else return action.reply({content: `You must discard a ${card.name}${card.marked ? " (Marked)" : ""} next`, ephemeral: true});
 					}
 				}
 
@@ -614,7 +577,7 @@ export default class baseExkit extends Core {
 							for (let i = 0; i < max; i++) {
 								drawPile.cards[i] = topCards[order[i]];
 							}
-							const cardnames = topCards.map(card2 => `${card2.name}${card2.pair !== null && this.players.size > 5 + this.getSetting("imploding") ? ` (Pair: ${card2.pair})` : ""}`).join(", ");
+							const cardnames = topCards.map(card2 => card2.name).join(", ");
 							player.messages = [`Successfully set the new order: ${cardnames}`];
 							if (discardNeedsInput.id === "hf") {
 								const player2 = this.players.find(player2 => player2.index === (player.index + (this.clockwise ? 1 : -1) + this.players.size) % this.players.size);
@@ -746,7 +709,7 @@ export default class baseExkit extends Core {
 						const ownerInCopyWorld = this.copy.players.find(player2 => player2.member.id === discardPile.cards[0].owner?.member.id) || this.copy.currentPlayer; // Player who played the card being noped
 						ownerInCopyWorld.messages = [];
 						const playerInCopyWorld = this.copy.players.get(member.id);
-						const prevCards = discardPile.cards.slice(0, discardPile.cards.length - this.copy.piles.get("discard").cards.length).map(card3 => ownerInCopyWorld.cards.splice(ownerInCopyWorld.cards.findIndex(card4 => card3.isEqual(card4) && card3.pair === card4.pair), 1)[0]);
+						const prevCards = discardPile.cards.slice(0, discardPile.cards.length - this.copy.piles.get("discard").cards.length).map(card3 => ownerInCopyWorld.cards.splice(ownerInCopyWorld.cards.findIndex(card4 => card3.isEqual(card4)), 1)[0]);
 						card = playerInCopyWorld.cards.find(card3 => card.isEqual(card3));
 						card.owner = playerInCopyWorld;
 
@@ -1077,7 +1040,7 @@ export default class baseExkit extends Core {
 						break;
 					}
 					case "bk": {
-						let player2 = this.players.find(player2 => player2.cards.some(card2 => card2.id === "bk" && card2 !== card && card2.pair === card.pair) || card.pair === player2.barkingCard?.pair);
+						let player2 = this.players.find(player2 => player2.cards.some(card2 => card2.id === "bk" && card2 !== card) || player2.barkingCard);
 						if (player === player2) {
 							if (this.players.size === 2) args[1] = `<@${this.players.find(player3 => player3 !== player).member.id}>`;
 							if (!args[1]) {
@@ -1097,7 +1060,7 @@ export default class baseExkit extends Core {
 							player2 = players.first();
 							if (!player2 || player2 === player) return action.reply({content: "Could not find that player", ephemeral: true});
 
-							discardPile.cards.unshift(player.barkingCard || player.cards.splice(player.cards.findIndex(card2 => card2.id === "bk" && card2 !== card && card2.pair === card.pair),1)[0]);
+							discardPile.cards.unshift(player.barkingCard || player.cards.splice(player.cards.findIndex(card2 => card2.id === "bk" && card2 !== card),1)[0]);
 						}
 
 						// Player discarded at correct time
@@ -1107,7 +1070,7 @@ export default class baseExkit extends Core {
 								discardPile.cards.unshift(player2.barkingCard);
 								player2.barkingCard = null;
 							} else {
-								const card2 = player2.cards.find(card2 => card2.id === "bk" && card2.pair === card.pair); // The only time it would be undefined is if player discarded both bks (and got to choose who to explode)
+								const card2 = player2.cards.find(card2 => card2.id === "bk"); // The only time it would be undefined is if player discarded both bks (and got to choose who to explode)
 								if (card2) discardPile.cards.unshift(player2.grabCard(card2));
 							}
 
@@ -1171,7 +1134,7 @@ export default class baseExkit extends Core {
 						const card2 = drawPile.cards.shift();
 						card.contributors.set(member.id, card2);
 						card.needsInput = true;
-						player.messages = [`Place the ${card2.name}${card.pair !== null && this.players.size > 5 + this.getSetting("imploding") ? ` (Pair: ${card.pair})` : ""} back into the draw pile${drawPile.cards.length > 24 ? ".\nIf needed, use a button to view a different section of 25 cards at a time" : ""}`];
+						player.messages = [`Place the ${card2.name} back into the draw pile${drawPile.cards.length > 24 ? ".\nIf needed, use a button to view a different section of 25 cards at a time" : ""}`];
 						this.meta.actionHistory.push(Util.parseString(Util.weighted(["$0 digs this card", 3], "$0 has to hide the bod-- err... *evidence*", "$0 wishes to be exactly like Heathcliff", "$0 swears this shovel is just slightly shorter than the other ones"), member.displayName));
 						break;
 					}
@@ -1191,10 +1154,8 @@ export default class baseExkit extends Core {
 						break;
 					}
 					case "tp":
-						this.players.forEach(player2 => {
-							if (player2.ToP === card.pair) player2.ToP = null; // Only occurs if the 5-combo is used, and they re-discard it. They aren't stealing cards from their hand ;)
-						});
-						player.ToP = this.piles.find(pile => pile.pair === card.pair);
+						this.players.forEach(player2 => player2.ToP = null); // Only occurs if the 5-combo is used, and they re-discard it. They aren't stealing cards from their hand
+						player.ToP = this.piles.get("ToP");
 						this.meta.actionHistory.push(Util.parseString(Util.weighted("$0 even makes Sauron look silly with their new tower", "$0 is **DOMINATING**", "$0 might be compensating for something...", "$0: 'Look at my magnificent tower!'"), member.displayName));
 						break;
 					case "tt": {
@@ -1269,41 +1230,47 @@ export default class baseExkit extends Core {
 	 */
 	updateUI(action) {
 		this.renderTable();
-		this.render.queue(() => {
-			const drawPile = this.piles.get("draw");
-			const deathclock = drawPile.cards.findIndex(card => card.id === "ik" && card.up);
+		this.render.queue(
+			() => {
+				const drawPile = this.piles.get("draw");
+				const deathclock = drawPile.cards.findIndex(card => card.id === "ik" && card.up);
 
-			const displays = [new MessageEmbed()
-				.setTitle(`Last Discarded Card: ${this.piles.get("discard").cards[0]?.name || "Nothing!"}`)
-				.setDescription(this.meta.ended ? `${this.currentPlayer.member.displayName} won the game!` : `\`/help kittens\` or [Browse Commands](https://github.com/Bedrockbreaker/unobot/wiki/Exploding-Kittens)\nIt is currently ${this.currentPlayer.member.displayName}'s turn`)
-				.addField(this.meta.ended ? `${this.currentPlayer.member.displayName} won the game!` : `${this.players.find(player => player.index === (this.currentPlayer.index - 1 + this.players.size) % this.players.size).member.displayName} ${this.clockwise ? `:arrow_right: **${this.currentPlayer.member.displayName}** :arrow_right:` : `:arrow_left: **${this.currentPlayer.member.displayName}** :arrow_left:`} ${this.players.find(player => player.index === (this.currentPlayer.index + 1) % this.players.size).member.displayName}`, this.meta.actionHistory.slice(-3).reverse().join("\n"))
-				.setColor(drawPile.cards.length ? Color.blend((drawPile.cards.length - 1)/(drawPile.total - 1), Color.Carmine, Color.Green) : Color.Purple)
-				.setImage("attachment://game.png")
-				.setFooter(`${drawPile.cards.length} Card${Util.plural(drawPile.cards.length)} Remaining${deathclock > -1 && deathclock <= 5 + this.players.size ? `・${deathclock} Card${deathclock} until Imploding Kitten` : ""}`)];
-			if (this.meta.messages.length || this.extraTurns) {
-				displays.push(new MessageEmbed()
-					.setTitle("Notice")
-					.setDescription(`${this.extraTurns ? `・Turns left: ${this.extraTurns+1}` : ""}${this.meta.messages.reduce((acc, msg) => `${acc}・${msg}\n`, "")}`)
-					.setColor(this.extraTurns ? Color.Carmine : Color.randomColor()));
+				const displays = [new MessageEmbed()
+					.setTitle(`Last Discarded Card: ${this.piles.get("discard").cards[0]?.name || "Nothing!"}`)
+					.setDescription(this.meta.ended ? `${this.currentPlayer.member.displayName} won the game!` : `\`/help kittens\` or [Browse Commands](https://github.com/Bedrockbreaker/unobot/wiki/Exploding-Kittens)\nIt is currently ${this.currentPlayer.member.displayName}'s turn`)
+					.addField(this.meta.ended ? `${this.currentPlayer.member.displayName} won the game!` : `${this.players.find(player => player.index === (this.currentPlayer.index - 1 + this.players.size) % this.players.size).member.displayName} ${this.clockwise ? `:arrow_right: **${this.currentPlayer.member.displayName}** :arrow_right:` : `:arrow_left: **${this.currentPlayer.member.displayName}** :arrow_left:`} ${this.players.find(player => player.index === (this.currentPlayer.index + 1) % this.players.size).member.displayName}`, this.meta.actionHistory.slice(-3).reverse().join("\n"))
+					.setColor(drawPile.cards.length ? Color.blend((drawPile.cards.length - 1)/(drawPile.total - 1), Color.Carmine, Color.Green) : Color.Purple)
+					.setImage("attachment://game.png")
+					.setFooter(`${drawPile.cards.length} Card${Util.plural(drawPile.cards.length)} Remaining${deathclock > -1 && deathclock <= 5 + this.players.size ? `・${deathclock} Card${deathclock} until Imploding Kitten` : ""}`)];
+				if (this.meta.messages.length || this.extraTurns) {
+					displays.push(new MessageEmbed()
+						.setTitle("Notice")
+						.setDescription(`${this.extraTurns ? `・Turns left: ${this.extraTurns+1}` : ""}${this.meta.messages.reduce((acc, msg) => `${acc}・${msg}\n`, "")}`)
+						.setColor(this.extraTurns ? Color.Carmine : Color.randomColor()));
+				}
+				const showHandBtn = new MessageActionRow().addComponents(new MessageButton().setCustomId("hand").setLabel(`Show Hand${this.players.some(player => player.ping) ? " (!)" : ""}`).setStyle("PRIMARY"));
+
+				/**@type {import("discord.js").MessageOptions} */
+				const message = {embeds: displays, components: [showHandBtn], files: [new MessageAttachment(this.render.canvas.toBuffer(), "game.png")]}
+				if (this.meta.gameMessage) return this.meta.gameMessage.removeAttachments().then(msg => msg.edit(message));
+				return this.meta.thread.send(message).then(msg => this.meta.gameMessage = msg);
+			}, 
+			() => {
+				const hand = this.displayHand(this.players.get(action.member.id));
+				if (action.replied || action.deferred) return Util.emptyPromise();
+				return action.customId === "start" ? action.reply(hand) : Util.update(action, hand);
 			}
-			const showHandBtn = new MessageActionRow().addComponents(new MessageButton().setCustomId("hand").setLabel(`Show Hand${this.players.some(player => player.ping) ? " (!)" : ""}`).setStyle("PRIMARY"));
-
-			/**@type {import("discord.js").MessageOptions} */
-			const message = {embeds: displays, components: [showHandBtn], files: [new MessageAttachment(this.render.canvas.toBuffer(), "game.png")]}
-			if (this.meta.gameMessage) return this.meta.gameMessage.removeAttachments().then(msg => msg.edit(message));
-			return this.meta.thread.send(message).then(msg => this.meta.gameMessage = msg);
-		}, () => {
-			const hand = this.displayHand(this.players.get(action.member.id));
-			if (action.replied || action.deferred) return Util.emptyPromise();
-			return action.customId === "start" ? action.reply(hand) : Util.update(action, hand);
-		});
+		);
 		this.render.flush();
 	}
 
 	/**@param {ExkitPlayer} player - The player to remove from the game*/
 	removePlayer(player) {
 		this.copy = null; // yes, this can theoretically make a card "un-nopable" if a player leaves at the correct moment, but I don't care enough to fix that
-		this.piles.get("discard").cards.push(...player.cards); // Return their cards in case they had an imploding kitten or other important card in their hand at the moment
+		const killer = player.grabCard(player.cards.find(card => card.id === "ik") || player.cards.find(card => card.exploded));
+		const discardPile = this.piles.get("discard");
+		discardPile.cards.push(...player.cards); // Return their cards in case they had an imploding kitten or other important card in their hand at the moment
+		if (killer) discardPile.cards.unshift(killer);
 		if (this.extraTurns) { // If the player died with extra turns left
 			this.extraTurns = 0;
 			this.nextPlayer();
@@ -1324,45 +1291,44 @@ export default class baseExkit extends Core {
 		const drawPile = this.piles.get("draw");
 		const discardPile = this.piles.get("discard");
 
-		if (drawPile.cards[0]?.up) this.render.queue(() => Canvas.loadImage(drawPile.cards[0].image).then(image => this.render.drawImageNow(image, 237, 125, 175, 250)));
+		if (drawPile.cards[0]?.up) this.render.queue(() => this.render.drawImage(drawPile.cards[0].image, 237, 125, 175, 250));
 		this.players.forEach(player => {
-			this.render.drawText(player.cards.length, player.x + 135, player.y + 35);
+			this.render.queue(() => this.render.drawText(player.cards.length, player.x + 135, player.y + 35));
 			// Marked cards rendering
 			const marked = player.cards.filter(card => card.marked);
 			marked.forEach((card, i) => {
-				this.render.queue(() => Canvas.loadImage(card.image).then(image => {
-					this.render.drawImageNow(image, player.x + 90 + 28*i/Math.max(marked.length-1, 1), player.y + 41, 28, 40);
-					this.render.drawImageNow(this.render.images.get("marked"), player.x + 90 + 28*i/Math.max(marked.length-1, 1), player.y + 41, 28, 40);
-					if (card.pair !== null && this.players.size > 5 + this.getSetting("imploding")) this.render.drawTextNow(card.pair, player.x + 90 + 28*i/Math.max(marked.length-1, 1), player.y + 80);
-				}));
+				this.render.queue(
+					() => this.render.drawImage(card.image, player.x + 90 + 28*i/Math.max(marked.length-1, 1), player.y + 41, 28, 40),
+					() => this.render.drawImage("exkit/marked.png", player.x + 90 + 28*i/Math.max(marked.length-1, 1), player.y + 41, 28, 40)
+				);
 			});
 			// Curse of the Cat Butt Rendering
-			if (player.cursed) this.render.queue(() => this.render.drawImage(this.render.images.get("cursed"), player.x, player.y));
+			if (player.cursed) this.render.queue(() => this.render.drawImage("exkit/cursed.png", player.x, player.y));
 			// Tower rendering
 			if (player.ToP) {
-				this.render.queue(() => this.render.drawImage(this.render.images.get("tower"), player.x - 10, player.y - 10));
-				if (player.ToP.cards.length) this.render.drawText(player.ToP.cards.length, player.x, player.y + 80);
-				if (this.players.size > 5 + this.getSetting("imploding")) this.render.drawText(player.ToP.pair, player.x + 60, player.y + 80);
+				this.render.queue(() => this.render.drawImage("exkit/tower.png", player.x - 10, player.y - 10));
+				if (player.ToP.cards.length) this.render.queue(() => this.render.drawText(player.ToP.cards.length, player.x, player.y + 80));
 			}
 			// Barking Kitten rendering (if the player discarded one too early)
-			if (player.barkingCard) {
-				this.render.queue(() => this.render.drawImage(this.render.images.get("mouse"), player.x - 10, player.y - 10));
-				if (this.players.size > 5 + this.getSetting("imploding")) this.render.drawText(player.barkingCard.pair, player.x, player.y + 40);
-			}
+			if (player.barkingCard) this.render.queue(() => this.render.drawImage("exkit/mouse.png", player.x - 10, player.y - 10));
 			// I'll Take That rendering
-			if (player.bullyCard) this.render.queue(() => Canvas.loadImage(player.bullyCard.owner.member.displayAvatarURL({format: "png", size: 32})).then(image => this.render.drawImageNow(image, player.x+44, player.y+4, 32, 32)));
+			if (player.bullyCard) this.render.queue(() => Canvas.loadImage(player.bullyCard.owner.member.displayAvatarURL({format: "png", size: 32})).then(image => this.render.drawImage(image, player.x+44, player.y+4, 32, 32)));
 		});
-		this.render.queue(() => Canvas.loadImage(discardPile.cards[0]?.image || "images/discardpileghost.png").then(image => {
-			this.render.drawTextNow(`${drawPile.cards.length} Cards`, 260, 320, "32px Arial");
-			this.render.drawImageNow(image, 437, 125, 175, 250);
-			if (discardPile.cards[0]?.pair !== null && this.players.size > 5 + this.getSetting("imploding")) this.render.drawTextNow(discardPile.cards[0].pair, 568, 208, "54px Arial");
-		}));
+		this.render.queue(() => {
+			this.render.drawText(`${drawPile.cards.length} Cards`, 260, 320, "32px Arial");
+			this.render.drawImage(discardPile.cards[0]?.image || "common/discardpileghost.png", 437, 125, 175, 250);
+			return Util.emptyPromise();
+		});
 	}
 
 	drawStatic() {
 		super.drawStatic();
-		this.render.queue(() => Canvas.loadImage("images/exkit/back.png").then(image => this.render.drawImageNow(image, 237, 125, 175, 250)),
-			() => Canvas.loadImage("images/exkit/icon.png").then(image => this.players.forEach(player => this.render.drawImageNow(image, player.x + 90, player.y))),
+		this.render.queue(
+			() => this.render.drawImage("exkit/back.png", 237, 125, 175, 250),
+			() => {
+				this.players.forEach(player => this.render.drawImage("exkit/icon.png", player.x + 90, player.y));
+				return Util.emptyPromise();
+			},
 			() => this.saveCanvas()
 		);
 	}
@@ -1389,20 +1355,7 @@ export default class baseExkit extends Core {
 			if (card1.id === "ek" || card2.id === "ek") return card1.id === "ek" ? -1 : 1;
 			if (card1.id === "de" || card2.id === "de") return card1.id === "de" ? -1 : 1;
 			return card1.name < card2.name ? -1 : (card1.name > card2.name);
-		}).map(card => {
-			const propValues = [];
-			const propDescs = [];
-			if (card === player.cards[player.cards.length-1]) propDescs.push("Newest Card");
-			if (card.marked) {
-				propValues.push("marked");
-				propDescs.push("Marked");
-			}
-			if (card.pair !== null && this.players.size > 5 + this.getSetting("imploding")) {
-				propValues.push(`pair:${card.pair}`);
-				propDescs.push(`Pair: ${card.pair}`);
-			}
-			return {label: card.name, description: propDescs.join("・"), value: `${card.id}${propValues.length ? `.${propValues.join(",")}` : ""}  ${this.cardCounter}`};
-		}));
+		}).map(card => ({label: card.name, description: card.marked ? "Marked" : "", value: `${card.id}${card.marked ? ".marked" : ""}  ${this.cardCounter}`})));
 
 		const drawPile = this.piles.get("draw");
 		const discardNeedsInput = this.piles.get("discard").cards.find(card => card.needsInput);
@@ -1411,7 +1364,7 @@ export default class baseExkit extends Core {
 			embed.setColor(drawPile.cards.slice(0, discardNeedsInput.id === "a5" ? 5 : 3).some(card => card.id === "ik") ? [0,173,255] : (drawPile.cards.some(card => card.id === "ek") ? Color.Black : Color.randomColor()));
 			for (let i = 0; i < Math.min(discardNeedsInput.id === "a5" ? 5 : 3, drawPile.cards.length); i++) {
 				const card = drawPile.cards[i];
-				rows[0].addComponents(new MessageButton().setCustomId(`game buildfuture ${i}`).setLabel(`${card.name}${card.pair !== null && this.players.size > 5 + this.getSetting("imploding") ? ` (Pair: ${card.pair})` : ""}`).setStyle("PRIMARY"));
+				rows[0].addComponents(new MessageButton().setCustomId(`game buildfuture ${i}`).setLabel(card.name).setStyle("PRIMARY"));
 			}
 		} else if (discardNeedsInput?.id === "br") {
 			if (!page) {
@@ -1642,9 +1595,8 @@ class ExkitPlayer extends Player {
 class ExkitPile extends Pile {
 	/**
 	 * @param {ExkitCard[]} [cards] - The cards in the pile
-	 * @param {number} [pair] - The ID of the pair this pile belongs to (ToP only)
 	 */
-	constructor(cards = [], pair = null) {
+	constructor(cards = []) {
 		super(cards);
 
 		/**@type {ExkitCard[]} */
@@ -1652,9 +1604,6 @@ class ExkitPile extends Pile {
 
 		/** The total number of cards originally in this pile*/
 		this.total = cards.length;
-
-		/** The ID of the pair this pile belongs to (ToP only) */
-		this.pair = pair;
 	}
 }
 
@@ -1663,14 +1612,10 @@ class ExkitCard extends Card {
 	 * @param {string} id - The id of the card
 	 * @param {string} [name] - The Human-Readable name of the card, defaults to the id
 	 * @param {string} [image] - The URL to the image of the card
-	 * @param {number} [pair] - The ID of the pair this card belongs to (Barking Kitten and ToP only)
 	 * @param {boolean} [up] - Whether this card is facing up or not
 	 */
-	constructor(id, name, image = "", pair = null, up = false) {
+	constructor(id, name, image = "", up = false) {
 		super(id, name, image);
-
-		/** The ID of the pair this card belongs to (Barking Kitten and ToP only) */
-		this.pair = pair;
 
 		/** Whether this card is facing up or not */
 		this.up = up;

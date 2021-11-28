@@ -1,17 +1,25 @@
 ﻿import {ButtonInteraction, Client, Collection, CommandInteraction, DiscordAPIError, GuildMember, Intents, Message, MessageActionRow, MessageAttachment, MessageButton, MessageEmbed, MessageSelectMenu, SelectMenuInteraction} from "discord.js";
 import Canvas from "canvas";
-import {Core, Util, Color, Player, Pile, Card} from "./core.js";
+import fs from "fs";
+import util from "util";
+import {Core, Util, Render, Color, Player, Pile, Card} from "./core.js";
 const auth = await loadAuth();
 
 // Load card games
+console.log("loading games...");
+// TODO: remove all `string literals` with no ${} inside of them
 import baseUno from "./uno.js";
 import baseExkit from "./exkit.js";
 import baseWiki from "./wiki.js";
 import basePhase from "./phase.js";
-//import baseMille from "./mille.js";
+import baseMille from "./mille.js";
 //import baseRamen from "./ramen.js";
 //import baseFlux from "./flux.js";
 //import baseMdeal from "./mdeal.js";
+
+// Load images
+console.log("loading images...");
+Render.images = new Collection(await Promise.all(fs.readdirSync("./images").flatMap(folder => fs.readdirSync(`./images/${folder}`).map(imagepath => `./images/${folder}/${imagepath}`)).map(imagepath => Canvas.loadImage(imagepath))).then(images => images.map(image => [image.src.slice(9), image])));
 
 const welcomeMessages = ["$0 just joined the game - glhf!", "$0 just joined. Everyone, look busy!", "$0 just joined. Can I get a heal?", "$0 joined your party.", "$0 joined. You must construct additional pylons.",
 	"Ermagherd. $0 is here.", "Welcome, $0. Stay a while and listen.", "Welcome, $0. We were expecting you ( ͡° ͜ʖ ͡°)", "Welcome, $0. We hope you brought pizza.", "Welcome $0. Leave your weapons by the door.",
@@ -38,10 +46,7 @@ global.delete = (key) => {
 bot.on("warn", console.warn);
 bot.on("error", console.error);
 process.on("uncaughtException", err => {
-	if (err instanceof DiscordAPIError) {
-		console.error(err);
-		console.error(err.requestData.json.data);
-	}
+	if (err instanceof DiscordAPIError) console.error(util.formatWithOptions({colors: true, depth: null}, "%O", err.requestData));
 	else throw err;
 });
 bot.once("ready", () => {
@@ -50,6 +55,9 @@ bot.once("ready", () => {
 });
 
 bot.on("interactionCreate", async (/**@type {import("discord.js").MessageComponentInteraction} */action) => {
+	if (action.guildId === "563223150012268567") {
+		if (auth === process.env) return;
+	} else if (auth !== process.env) return;
 	try {
 		if (action.isCommand()) return handleCommand(action);
 		if (action.isButton()) return handleButton(action);
@@ -116,17 +124,6 @@ function handleCommand(action) {
 			if (game.meta.phase >= 2) return action.reply({content: "The game has already started.", ephemeral: true});
 			start(action, game);
 			break;
-//		case "tl":
-//		case "timelimit":
-//			return channel.send("Unimplemented!");
-//			/*
-//			if (!serverGame) return channel.send("Usage: `!(tl|timelimit) 𝘯𝘶𝘮`. Changes the turn time limit to *num* seconds. If set to 0, the time limit is disabled. Start a game with `!play`");
-//			if (!isLeader) return channel.send("Only the leader can change that!");
-//			if (isNaN(Number(args[1]))) return channel.send(args[1] === undefined ? "Please specify a number!" : `\`${args[1]}\` is not a valid number!`);
-//			serverGame.meta.timeLimit = Math.abs(Math.floor(Number(args[1])));
-//			serverGame.resetTimeLimit();
-//			channel.send(`Changed the turn time limit to ${serverGame.meta.timeLimit} seconds`);
-//			break;
 		case "vote": {
 			if (!action.channel.isThread()) return action.reply({content: "This isn't a thread with an active game. Start one with `/play`", ephemeral: true});
 			if (!game) return action.reply({content: "There aren't any politics here -- we're in the pre-*game*brian age! Start one with `/play`", ephemeral: true});
@@ -193,7 +190,7 @@ function handleCommand(action) {
 				.then(() => new Promise(res => res(eval(action.options.getString("code")))))
 				.then(ans => {
 					console.log(ans);
-					action.editReply({content: `\`\`\`js\n${`${ans}`.substring(0,1991)}\`\`\``});
+					action.editReply({content: `\`\`\`js\n${`${util.inspect(ans)}`.substring(0,1991)}\`\`\``});
 				}).catch(ans => {
 					console.error(ans);
 					action.editReply({content: `\`\`\`js\n${`${ans}`.substring(0,1991)}\`\`\``});
@@ -238,7 +235,7 @@ function handleButton(action) {
 		case "hand":
 			if (!game) return action.reply({content: "That game no longer exists", ephemeral: true});
 			if (!player) return action.reply({content: "You're aren't a part of this game!", ephemeral: true});
-			hand(action, game, player, btnid[1], btnid[2]);
+			hand(action, game, player, Util.parseInt(btnid[1]), btnid[2]);
 			break;
 		case "game":
 			if (!game) return action.reply({content: "That game no longer exists", ephemeral: true});
@@ -260,7 +257,6 @@ function handleSelection(action) {
 	const game = global.get(action.guildId + action.channelId);
 
 	if (game?.meta.ended) global.delete(action.guildId + action.channelId);
-	// TODO: slight refactor to all games: select menu and button ids don't need "game" exactly anymore:
 	if (!game) return action.reply({content: "That game no longer exists", ephemeral: true});
 	game.handleCommand(action, [...selectid.slice(1), ...action.values.flatMap(value => value.split(" "))]);
 	if (game.meta.ended) global.delete(game.id);
@@ -271,6 +267,7 @@ function handleSelection(action) {
  * @param {string[]} command
  */
 function help(action, command) {
+	// TODO: interaction autocomplete
 	const embed = new MessageEmbed();
 	embed.setTitle(`Help for \`/${command.join(" ")}\``).setDescription("[Browse Commands](https://github.com/Bedrockbreaker/unobot/wiki)");
 	switch(command[0]) {
@@ -295,10 +292,10 @@ function help(action, command) {
 				.setColor(Color.randomColor());
 			break;
 		case "join":
-			embed.addField("/join", "Joins the game active within this thread.\nEx: `/join`").setColor(Color.Forest);
+			embed.addField("/join", "If used within a thread with a joinable game, joins the game.\nEx: `/join`").setColor(Color.Forest);
 			break;
 		case "start":
-			embed.addField("/start", "Starts an existing game. Leader-Only.\nEx: `/start`").setColor(Color.Forest);
+			embed.addField("/start", "Displays the settings, if applicable.\nIf the settings are already displayed, or otherwise, it begins the game.\nEx: `/start`").setColor(Color.Forest);
 			break;
 		case "vote":
 			embed.addField("/vote [Enable|Disable]", "Controls whether majority-rules voting is the deciding factor on game settings.\nOtherwise, only the Leader controls the settings. Use `/vote` by itself to check the current setting.\nLeader-Only. Default: `disabled`\nEx: `/vote disable`").setColor(Color.randomColor());
@@ -308,9 +305,6 @@ function help(action, command) {
 			break;
 		case "kick":
 			embed.addField("/kick <player>", `Kicks a player from the game in this thread. Leader-Only.\nEx: \`/kick @${Util.weighted([action.member.displayName, 99], "your mom")}\``).setColor(Color.Carmine);
-			break;
-		case "timelimit":
-			embed.addField("/timelimit <int>", "Changes the time limit per turn, in seconds. 0 means no limit.\nLeader-Only. Default: `0`\nEx: `/timelimit 300`").setColor(Color.randomColor());
 			break;
 		case "endgame":
 			embed.addField("/endgame", "Abruptly ends the game. Leader-only.\nEx: `/endgame`").setColor(Color.Carmine);
@@ -365,6 +359,8 @@ function play(action, name) {
 				case "Mille Bornes":
 					newGame = new baseMille(thread);
 					break;
+				default:
+					return action.reply({content: "Sorry, that game is currently a work in progress!", ephemeral: true});
 			}
 			newGame.addPlayer(action.member, true);
 			global.set(action.guildId + thread.id, newGame);
@@ -420,4 +416,5 @@ async function loadAuth() {
 	}
 }
 
+console.log("logging in...");
 bot.login(auth.token);

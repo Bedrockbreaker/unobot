@@ -1,5 +1,4 @@
 ﻿import {Collection, GuildMember, MessageActionRow, MessageAttachment, MessageButton, MessageComponentInteraction, MessageEmbed, MessageSelectMenu, ThreadChannel} from "discord.js";
-import Canvas from "canvas";
 import {Core, Util, Color, Player, Pile, Card, Setting} from "./core.js";
 
 /**
@@ -91,6 +90,8 @@ export default class baseUno extends Core {
 		discardPile.cards.unshift(drawPile.cards.shift());
 		this.players.forEach(player => {
 			player.cards = drawPile.cards.splice(0, this.getSetting("startingCards"));
+			player.renegeCard = null;
+			player.saidUno = false;
 			if (player !== this.players.get(action.member.id)) player.ping = true;
 		});
 		if (discardPile.cards[0].id === "ww") discardPile.cards[0].color = "w";
@@ -120,11 +121,8 @@ export default class baseUno extends Core {
 				break;
 		}
 
-		if (!this.players.reduce((acc, player) => acc + player.points, 0)) {
-			super.start(action);
-			this.updateUI(action);
-		}
-		//this.resetTimeLimit();
+		if (this.players.every(player => !player.points)) super.start(action);
+		this.updateUI(action);
 	}
 
 	deckCreate() {
@@ -132,15 +130,14 @@ export default class baseUno extends Core {
 		const cards = [];
 		const c = ["r","g","b","y"];
 		const colors = ["Red", "Green", "Blue", "Yellow"];
-		const url = "images/uno/";
 		for (let k = 0; k < Math.ceil(this.players.size * this.getSetting("startingCards") / 28); k++) {
 			for (let i = 0; i < 4; i++) {
-				cards.push(new UnoCard("ww", "Wild", `${url}ww.png`), new UnoCard("w4", "Wild Draw 4", `${url}w4.png`), new UnoCard(`${c[i]}0`, `${colors[i]} 0`, `${url}${c[i]}0.png`),
-					new UnoCard(`${c[i]}d`, `${colors[i]} Draw 2`, `${url}${c[i]}d.png`), new UnoCard(`${c[i]}d`, `${colors[i]} Draw 2`, `${url}${c[i]}d.png`),
-					new UnoCard(`${c[i]}s`, `${colors[i]} Skip`, `${url}${c[i]}s.png`), new UnoCard(`${c[i]}s`, `${colors[i]} Skip`, `${url}${c[i]}s.png`),
-					new UnoCard(`${c[i]}r`, `${colors[i]} Reverse`, `${url}${c[i]}r.png`), new UnoCard(`${c[i]}r`, `${colors[i]} Reverse`, `${url}${c[i]}r.png`));
+				cards.push(new UnoCard("ww", "Wild", `uno/ww.png`), new UnoCard("w4", "Wild Draw 4", `uno/w4.png`), new UnoCard(`${c[i]}0`, `${colors[i]} 0`, `uno/${c[i]}0.png`),
+					new UnoCard(`${c[i]}d`, `${colors[i]} Draw 2`, `uno/${c[i]}d.png`), new UnoCard(`${c[i]}d`, `${colors[i]} Draw 2`, `uno/${c[i]}d.png`),
+					new UnoCard(`${c[i]}s`, `${colors[i]} Skip`, `uno/${c[i]}s.png`), new UnoCard(`${c[i]}s`, `${colors[i]} Skip`, `uno/${c[i]}s.png`),
+					new UnoCard(`${c[i]}r`, `${colors[i]} Reverse`, `uno/${c[i]}r.png`), new UnoCard(`${c[i]}r`, `${colors[i]} Reverse`, `uno/${c[i]}r.png`));
 				for (let j = 1; j < 10; j++) {
-					cards.push(new UnoCard(`${c[i]}${j}`, `${colors[i]} ${j}`, `${url}${c[i]}${j}.png`), new UnoCard(`${c[i]}${j}`, `${colors[i]} ${j}`, `${url}${c[i]}${j}.png`));
+					cards.push(new UnoCard(`${c[i]}${j}`, `${colors[i]} ${j}`, `uno/${c[i]}${j}.png`), new UnoCard(`${c[i]}${j}`, `${colors[i]} ${j}`, `uno/${c[i]}${j}.png`));
 				}
 			}
 		}
@@ -434,7 +431,7 @@ export default class baseUno extends Core {
 								this.removePlayer(player2);
 							}
 						});
-						this.currentPlayer = this.players.first(); // Ensures, when the game is won, the ui is updated one last time
+						this.currentPlayer = this.players.first();
 						this.meta.thread.send(`Removed Players: ${removedPlayers.join(", ") || "None ~~yet~~"}`);
 						if (this.players.size === 1) won = true;
 					}
@@ -444,10 +441,19 @@ export default class baseUno extends Core {
 						this.drawStatic();
 					} else {
 						move = `, winning the round with ${player.points} points!`;
-						player.saidUno = false;
-						// Don't need to reset renegeCard here because in order to win, they would would've needed to discard it anyway
-						this.drawStatic();
-						this.start(action);
+						if (this.meta.ended || 
+							(zSCards !== 1 || (!card.id.endsWith("0") && !card.id.endsWith("7"))) && 
+							(zSCards !== 2 || !card.id.endsWith("0")) &&
+							(zSCards !== 3 || !card.id.endsWith("7"))) discardPile.cards.unshift(player.grabCard(card));
+						this.meta.actionHistory.push(`${member.displayName} ${discardStyle} a ${card.name}` + move);
+						this.updateUI(action);
+						this.render.queue(() => { // Flushed with the updateUI above
+							this.meta.gameMessage = null;
+							this.drawStatic();
+							this.start(action);
+							return Util.emptyPromise();
+						});
+						return;
 					}
 				}
 				if (this.meta.ended || 
@@ -463,19 +469,7 @@ export default class baseUno extends Core {
 	nextPlayer() {
 		this.currentPlayer.renegeCard = null;
 		this.currentPlayer = this.players.find(player => player.index === ((this.currentPlayer.index + (this.clockwise ? 1 : -1)) + this.players.size) % this.players.size);
-		//this.resetTimeLimit();
 	}
-
-	/*
-	timeLimit() {
-		const drawPile = this.piles.get("draw");
-		const drew = this.draw(this.getSetting("stacking") ? drawPile.drawNum : (this.getSetting("contDraw") ? 0 : 1));
-		this.currentPlayer.cards.push(...drew);
-		drawPile.drawNum = 0; // Only does something if stacking is enabled
-		this.meta.actionHistory.push(`${this.currentPlayer.member.displayName} drew ${drew.length} card${Util.plural(drew.length)} for taking too long`);
-		this.nextPlayer();
-	}
-	*/
 
 	/**
 	 * @param {MessageComponentInteraction} action - The Interaction to reply to
@@ -506,11 +500,14 @@ export default class baseUno extends Core {
 				.setDescription(this.meta.messages.reduce((acc, msg) => `${acc}・${msg}\n`, ""))
 				.setColor(topDiscard.id.startsWith("w") ? {r: "#D40000", g: "#2CA05A", b: "#2A7FFF", y: "#FFCC00", w: Color.Purple}[topDiscard.color] : (topDiscard.owner || drawPile.drawNum ? Color.Carmine : Color.randomColor())));
 		}
-		const showHandBtn = new MessageActionRow().addComponents(new MessageButton().setCustomId("hand").setLabel(`Show Hand${this.players.some(player => player.ping) ? " (!)" : ""}`).setStyle("PRIMARY"));
+
+		const row = new MessageActionRow().addComponents(new MessageButton().setCustomId("hand").setLabel(`Show Hand${this.players.some(player => player.ping) ? " (!)" : ""}`).setStyle("PRIMARY"));
+		if (this.players.some(player => player.cards.length === 1 && !player.saidUno)) row.addComponents(new MessageButton().setCustomId("game uno").setLabel("Call Uno").setStyle("DANGER"));
+		if (topDiscard.owner) row.addComponents(new MessageButton().setCustomId("game challenge").setLabel("Challenge").setStyle("DANGER"));
 
 		this.render.queue(() => {
 			/**@type {import("discord.js").MessageOptions} */
-			const message = {embeds: displays, components: [showHandBtn], files: [new MessageAttachment(this.render.canvas.toBuffer(), "game.png")]};
+			const message = {embeds: displays, components: [row], files: [new MessageAttachment(this.render.canvas.toBuffer(), "game.png")]};
 			if (this.meta.gameMessage) return this.meta.gameMessage.removeAttachments().then(msg => msg.edit(message));
 			return this.meta.thread.send(message).then(msg => this.meta.gameMessage = msg);
 		}, () => {
@@ -522,20 +519,27 @@ export default class baseUno extends Core {
 
 	renderTable() {
 		super.renderTable();
-		this.players.forEach(player => this.render.drawText(player.cards.length, player.x + 135, player.y + 35));
-		this.render.queue(() => Canvas.loadImage(this.piles.get("discard").cards[0].image).then(image => this.render.drawImageNow(image, 285, 50, 280, 400)));
+		this.render.queue(
+			() => this.render.drawImage(this.piles.get("discard").cards[0].image, 285, 50, 280, 400),
+			() => {
+				this.players.forEach(player => this.render.drawText(player.cards.length, player.x + 135, player.y + 35));
+				return Util.emptyPromise();
+			}
+		);
 	}
 
 	drawStatic() {
 		super.drawStatic();
-		this.render.queue(() => {
-			return Canvas.loadImage("images/uno/icon.png").then(image => {
+		this.render.queue(
+			() => {
 				this.players.forEach(player => {
-					this.render.drawImageNow(image, player.x + 90, player.y);
-					if (this.getSetting("points")) this.render.drawTextNow(`${player.points} Pts`, player.x + 90, player.y + 75, "24px Arial");
+					this.render.drawImage("uno/icon.png", player.x + 90, player.y);
+					if (this.getSetting("points")) this.render.drawText(`${player.points} Pts`, player.x + 90, player.y + 75, "24px Arial");
 				});
-			});
-		}, () => this.saveCanvas());
+				return Util.emptyPromise();
+			},
+			() => this.saveCanvas()
+		);
 	}
 
 	/**
@@ -558,25 +562,7 @@ export default class baseUno extends Core {
 			return card1.id >= card2.id ? (card1.id === card2.id ? 0 : 1) : -1;
 		}).slice(page * 25, page * 25 + 25).map(card => ({label: card.name, value: `${card.id}  ${this.cardCounter}`})));
 
-		display.components.push(new MessageActionRow().addComponents(
-			(player.renegeCard ? 
-				new MessageButton()
-					.setCustomId("game endturn")
-					.setLabel(this.match(player.renegeCard, this.piles.get("discard").cards[0]) ? "Renege" : "End Turn")
-					.setStyle("SECONDARY") :
-				new MessageButton()
-					.setCustomId("game draw")
-					.setLabel("Draw")
-					.setStyle("SECONDARY")),
-			new MessageButton()
-				.setCustomId("game uno")
-				.setLabel("Call Uno")
-				.setStyle("SECONDARY"),
-			new MessageButton()
-				.setCustomId("game challenge")
-				.setLabel("Challenge")
-				.setStyle("SECONDARY")
-		));
+		display.components.push(new MessageActionRow().addComponents(player.renegeCard ? new MessageButton().setCustomId("game endturn").setLabel(this.match(player.renegeCard, this.piles.get("discard").cards[0]) ? "Renege" : "End Turn").setStyle("SECONDARY") : new MessageButton().setCustomId("game draw").setLabel("Draw").setStyle("SECONDARY")));
 
 		return display;
 	}

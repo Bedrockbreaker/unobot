@@ -60,7 +60,7 @@ class Core {
 		/** Players who are in the game */
 		this.players = players;
 		/** Render Pipeline */
-		this.render = new Render(Canvas.createCanvas(850, 500), new Collection(), dy);
+		this.render = new Render(Canvas.createCanvas(850, 500), dy);
 		/** A counter which continually ticks up, counting every card ever displayed (used to avoid value collisions in menu select options) */
 		this._cardCounter = 0;
 	}
@@ -92,7 +92,7 @@ class Core {
 					(values[i].startsWith(">") && card[traitName] > Number(values[i].substring(1))) ||
 					(values[i].startsWith("<=") && card[traitName] <= Number(values[i].substring(2))) ||
 					(values[i].startsWith("<") && card[traitName] < Number(values[i].substring(1))) ||
-					((!card[traitName] && card[traitName] !== 0 ? "false" : card[traitName].toString()) === values[i])) return !invert;
+					(values[i] === (!card[traitName] && card[traitName] !== 0 ? "false" : card[traitName].toString()))) return !invert;
 			}
 			return invert;
 		}));
@@ -156,7 +156,7 @@ class Core {
 	 * this.meta.settings.get(key).value = value;
 	 * ```
 	 * @param {string} key 
-	 * @param {*} value 
+	 * @param {number} value 
 	 */
 	setSetting(key, value) {
 		this.meta.settings.get(key).value = value;
@@ -216,7 +216,7 @@ class Core {
 	 */
 	displaySettings() {
 		if (!this.meta.settings.size) return null;
-		const leaderId = this.players.find(player => player.isLeader).member.id;
+		// TODO: show/announce chosen setting if it was random
 		const embed = new MessageEmbed()
 			.setTitle("Game Settings")
 			.setDescription(`\`/help ${this.meta.title}\` or [Browse Commands](https://github.com/Bedrockbreaker/unobot/wiki/${this.meta.title.replace(/ /g, "-")})`)
@@ -273,14 +273,9 @@ class Core {
 	}
 
 	/**
-	 * Registers mods and caches images
+	 * Registers mods
 	 */
-	setup() {
-		this.render.queue(
-			() => Canvas.loadImage("images/halo.png").then(image => this.render.images.set("halo", image)),
-			() => Canvas.loadImage("images/ping.png").then(image => this.render.images.set("ping", image))
-		);
-	}
+	setup() {}
 
 	/**
 	 * Generates a default player
@@ -352,51 +347,36 @@ class Core {
 		//this.updateUI(action);
 	}
 
-	/**
-	 * Randomizes the player order within a game
-	 */
+	/** Randomizes the player order within a game */
 	randomizePlayerOrder() {
 		let indexes = Util.shuffle([...Array(this.players.size).keys()]);
 		this.players.forEach(player => player.index = indexes.pop());
 	}
 
-	/**
-	 * Resets the time limit for the game
-	 */
-	/*
-	resetTimeLimit() {
-		// TODO: end the game if everyone hasn't gone once in row, or 10 min have passed.
-		clearTimeout(this.timeLimit);
-		if (!this.meta.timeLimit) return;
-		this.meta.timeLimit = setTimeout(() => {
-			this.timeLimit();
-			this.updateUI();
-		}, this.meta.timeLimit * 1000);
-	}
-	*/
-
-	/**
-	 * Renders everything which can visually change during the game
-	 */
+	/** Renders everything which can visually change during the game */
 	renderTable() {
-		this.render.queue(() => this.render.drawImage(this.render._canvas, 0, 0));
-		this.render.queue(() => this.render.drawImage(this.render.images.get("halo"), this.currentPlayer.x - 10, this.currentPlayer.y - 10));
-		this.players.forEach(player => {
-			if (player.ping) this.render.queue(() => this.render.drawImage(this.render.images.get("ping"), player.x + 66, player.y - 7));
-		});
+		this.render.queue(
+			() => this.render.drawImage(this.render._canvas, 0, 0),
+			() => this.render.drawImage("common/halo.png", this.currentPlayer.x - 10, this.currentPlayer.y - 10),
+			() => {
+				this.players.forEach(player => {
+					if (player.ping) this.render.drawImage("common/ping.png", player.x + 66, player.y - 7);
+				});
+				return Util.emptyPromise();
+			}
+		);
 	}
 
 	/** Render static images which don't change during the game onto the table */
 	drawStatic() {
-		this.render.queue(() => Canvas.loadImage("images/background.png").then(image => this.render.drawImageNow(image, 0, 0)));
-		const pLength = this.players.size;
-		this.players.sort((player1, player2) => player1.index - player2.index).forEach(player => {
-			const i = player.index || pLength; // Moves index 0 to index pLength
-			const p = i > Math.ceil(pLength / 2) ? Math.floor(pLength / 2) : Math.ceil(pLength / 2); // Number of players on a specific side of the screen
+		this.render.queue(() => this.render.drawImage("common/background.png", 0, 0));
+		this.players.forEach(player => {
+			const i = player.index || this.players.size; // Moves index `0` to index `this.players.size`
+			const p = i > Math.ceil(this.players.size / 2) ? Math.floor(this.players.size / 2) : Math.ceil(this.players.size / 2); // Number of players on a specific side of the screen
 			const empty = Math.max(0, (450 - this.render.dy * p) / (p + 1)); // Empty space between players, in pixels
-			player.x = i > Math.ceil(pLength / 2) ? 40 : 640;
-			player.y = 25 + empty + Math.min(empty + this.render.dy, (450 - this.render.dy) / (p - 1)) * (i > Math.ceil(pLength / 2) ? 2 * p + pLength % 2 - i : i - 1);
-			this.render.queue(() => Canvas.loadImage(player.member.displayAvatarURL({format: "png", size: 64})).then(image => this.render.drawImageNow(image, player.x, player.y, 80, 80)));
+			player.x = i > Math.ceil(this.players.size / 2) ? 40 : 640;
+			player.y = 25 + empty + Math.min(empty + this.render.dy, (450 - this.render.dy) / (p - 1)) * (i > Math.ceil(this.players.size / 2) ? 2 * p + this.players.size % 2 - i : i - 1);
+			this.render.queue(() => Canvas.loadImage(player.member.displayAvatarURL({format: "png", size: 64})).then(image => this.render.drawImage(image, player.x, player.y, 80, 80)));
 		});
 	}
 
@@ -423,7 +403,9 @@ class Core {
 		rows.push(new MessageActionRow().addComponents(new MessageSelectMenu()
 			.setCustomId("game")
 			.setPlaceholder(`Your Hand${player.cards.length > 25 ? ` (page ${page + 1} of ${Math.ceil(player.cards.length / 25) + 1})` : ""}`)
-			.addOptions(player.cards.sort((card1, card2) => card1.name - card2.name).slice(page * 25, page * 25 + 25).map(card => ({label: card.name, value: `${card.id}  ${this.cardCounter}`})))));
+			.addOptions(player.cards.sort((card1, card2) => {
+				return card1.id >= card2.id ? (card1.id === card2.id ? 0 : 1) : -1;
+			}).slice(page * 25, page * 25 + 25).map(card => ({label: card.name, value: `${card.id}  ${this.cardCounter}`})))));
 		if (player.cards.length > 25) {
 			rows.push(new MessageActionRow().addComponents(
 				new MessageButton()
@@ -507,7 +489,7 @@ class Util {
 	/**
 	 * Returns a MessageSelectOptionData with the options provided
 	 * @param {string} id - Each option will have a value of `id optionIndex`
-	 * @param {[string, string?][]} options - `[label, description]`
+	 * @param {[label: string, description: string?][]} options
 	 * @returns {import("discord.js").MessageSelectOptionData}
 	 */
 	static Selection(id, options) {
@@ -617,9 +599,9 @@ class Util {
 		"JUST. DO IT", "Sorry, but the princess is in another castle", "AHHH! I NEED A MEDIC BAG!", "Skdoo Beep Bop", "Tight bars, little man", "Monkey - Balloon Genocide", "~~SUS~~", "Also try Minecraft!", "I am the milkman. My milk is delicious", "Free bobux",
 		"Neat is a mod by Vazkii", "You. Pick up that can.", "Totally 'Accurate' Battle Simulator", "Jebediah Kerman - Ready to Launch", "I will become back my money.", "When you see it ~~727~~", "It's pronounced 'Rules'", "I have 70 alternative accounts!", "Good air!",
 		"This pic goes hard. Feel free to screenshot.", "You, my son, will have all the figgy pudding", "amogus", "Haha, what if I put my bed next to yours?", "Updated autopsy report", "Objection!", "Reject humanity, return to monke", "**BONK**", "Oh, you're a villain alright. Just not a **SUPER** one!",
-		"Keep talking, and nobody explodes", "Critial Failure: Natural 1", "Critical Success: Natural 20", "I roll to seduce the dragon", "It is Wednesday my dudes", "Engineer Gaming:tm:", "Hey VSauce, Michael here.", "Hello you wonderful people, welcome to the stream.",
+		"Keep talking, and nobody explodes", "Critical Failure: Natural 1", "Critical Success: Natural 20", "I roll to seduce the dragon", "It is Wednesday my dudes", "Engineer Gaming:tm:", "Hey VSauce, Michael here.", "Hello you wonderful people, welcome to the stream.",
 		"*Where are your fingers?*", "But nobody came...", "They put mamster chief in da soda", "How 2 Basic", "3 SHOTS FROM KITCHEN GUN", "That's not very cash money of you", "Meowth, that's right!", "Rip and tear, until it is done.", "You just got coconut malled",
-		"Get stick bugged", "You've been gnomed", "The floor here is made of floor", "But first, we need to talk about parrellel universes", "Hello World", "Your jordans are fake", "Is mayonaise an instrument?", "Top 10000 Cheese", "Horseradish is not an instrument either.",
+		"Get stick bugged", "You've been gnomed", "The floor here is made of floor", "But first, we need to talk about parrellel universes", "Hello World", "Your jordans are fake", "Is mayonnaise an instrument?", "Top 10000 Cheese", "Horseradish is not an instrument either.",
 		"The name's Jond. Bames Jond.", "Top 10 numbers 1-10", "Number 15: Burger King foot lettuce.", "change da world. my final message. Goodb ye", "Who the heck is Steve Jobs?", "Poyo poyo", "Curse you Perry the Platypus!", "IS THAT FISH JENGA?!?", "Nice throw!",
 		":egg:", "Chaos, control!", "Are ya winning son?", "Tentaclar Aliens’ Epic Extraterretterrestrial Jungle Dance Party Inside Of A Super-Ultra-Mega-Gigantic U.F.O. (It Maybe U.U.F.O.) Silently Flying Over Illinois St.", "Welcome to the internet :)", "y'all ain't even ready for this",
 		"U.N. Owen was Her?", "i’ll have two number 9s, a number 9 large, a number 6 with extra dip, a number 7, two number 45s, one with cheese, and a large soda.", "↑↑↓↓←→←→BA↵", "b-baka! :flushed:", "We've been trying to reach you about your car's extended warranty.",
@@ -635,7 +617,7 @@ class Util {
 
 	/**
 	 * Add some quotes
-	 * @param  {(string | [quote: string, weight: number?])[]} quotes 
+	 * @param  {(string | [quote: string, weight: number])[]} quotes 
 	 */
 	static addQuotes(...quotes) {
 		Util.quotes.push(...quotes);
@@ -826,22 +808,18 @@ class Card {
 }
 
 /**
- * Special class for storing objects related to rendering. Only exists because deepClone and node canvas don't like each other.
+ * Render Pipe-line
  */
 class Render {
 	/**
 	 * @param {HTMLCanvasElement} canvas - The canvas used to render scenes
-	 * @param {Collection<string, CanvasImageSource>} imagecache - Cache of images used for rendering
 	 * @param {number} dy - Height in pixels the player's render space takes up. Default space is 160x80 px
 	 */
-	constructor(canvas, imagecache, dy) {
+	constructor(canvas, dy) {
 		/** The canvas used to render scenes */
 		this.canvas = canvas;
 		/** The rendering context of the canvas */
 		this.ctx = canvas.getContext("2d");
-		/** Cache of images used for rendering */
-		this.images = imagecache;
-		// TODO: different dy for different players?
 		/** Height in pixels the player's render space takes up. Default space is 160x80 px */
 		this.dy = dy;
 
@@ -870,8 +848,14 @@ class Render {
 		this._promisePending = false;
 	}
 
+	/**
+	 * Collection of images for rendering
+	 * @type {Collection<string, Canvas.Image>}
+	 */
+	static images;
+
 	/** 
-	 * Helper function for drawing text with a border. Automatically queues the render.
+	 * Helper function for drawing text with a border. Draws immediately, returns an empty promise.
 	 * @param {string} text - The text to draw
 	 * @param {number} x - The x coordinate, in pixels
 	 * @param {number} y - The y coordinate, in pixels
@@ -880,22 +864,6 @@ class Render {
 	 * @param {string} [strokeStyle] - Optional stroke style
 	 */
 	drawText(text, x, y, font, fillStyle, strokeStyle) {
-		this.queue(() => {
-			this.drawTextNow(text, x, y, font, fillStyle, strokeStyle);
-			return Util.emptyPromise();
-		});
-	}
-
-	/**
-	 * Helper function for drawing text with a border. Does not queue the render
-	 * @param {string} text - The text to draw
-	 * @param {number} x - The x coordinate, in pixels
-	 * @param {number} y - The y coordinate, in pixels
-	 * @param {string} [font] - Optional font
-	 * @param {string} [fillStyle] - Optional fill style
-	 * @param {string} [strokeStyle] - Optional stroke style
-	 */
-	drawTextNow(text, x, y, font = this.ctx.font, fillStyle = this.ctx.fillStyle, strokeStyle = this.ctx.strokeStyle) {
 		[font, this.ctx.font] = [this.ctx.font, font];
 		[fillStyle, this.ctx.fillStyle] = [this.ctx.fillStyle, fillStyle];
 		[strokeStyle, this.ctx.strokeStyle] = [this.ctx.strokeStyle, strokeStyle];
@@ -904,10 +872,11 @@ class Render {
 		[font, this.ctx.font] = [this.ctx.font, font];
 		[fillStyle, this.ctx.fillStyle] = [this.ctx.fillStyle, fillStyle];
 		[strokeStyle, this.ctx.strokeStyle] = [this.ctx.strokeStyle, strokeStyle];
+		return Util.emptyPromise();
 	}
 
 	/** 
-	 * Helper function for stroking text. Automatically queues the render.
+	 * Helper function for stroking text. Draws immediately, returns an empty promise.
 	 * @param {string} text - The text to stroke
 	 * @param {number} x - The x coordinate, in pixels
 	 * @param {number} y - The y coordinate, in pixels
@@ -915,30 +884,16 @@ class Render {
 	 * @param {string} [strokeStyle] - Optional stroke style
 	 */
 	strokeText(text, x, y, font, strokeStyle) {
-		this.queue(() => {
-			this.strokeTextNow(text, x, y, font, strokeStyle);
-			return Util.emptyPromise();
-		});
-	}
-
-	/**
-	 * Helper function for stroking text. Does not queue the render
-	 * @param {string} text - The text to stroke
-	 * @param {number} x - The x coordinate, in pixels
-	 * @param {number} y - The y coordinate, in pixels
-	 * @param {string} [font] - Optional font
-	 * @param {string} [strokeStyle] - Optional stroke style
-	 */
-	strokeTextNow(text, x, y, font = this.ctx.font, strokeStyle = this.ctx.strokeStyle) {
 		[font, this.ctx.font] = [this.ctx.font, font];
 		[strokeStyle, this.ctx.strokeStyle] = [this.ctx.strokeStyle, strokeStyle];
 		this.ctx.strokeText(text, x, y);
 		[font, this.ctx.font] = [this.ctx.font, font];
 		[strokeStyle, this.ctx.strokeStyle] = [this.ctx.strokeStyle, strokeStyle];
+		return Util.emptyPromise();
 	}
 
 	/** 
-	 * Helper function for filling text. Automatically queues the render.
+	 * Helper function for filling text. Draws immediately, returns an empty promise.
 	 * @param {string} text - The text to fill
 	 * @param {number} x - The x coordinate, in pixels
 	 * @param {number} y - The y coordinate, in pixels
@@ -946,31 +901,17 @@ class Render {
 	 * @param {string} [fillStyle] - Optional fill style
 	 */
 	fillText(text, x, y, font, fillStyle) {
-		this.queue(() => {
-			this.fillTextNow(text, x, y, font, fillStyle);
-			return Util.emptyPromise();
-		});
-	}
-
-	/**
-	 * Helper function for filling text. Does not queue the render
-	 * @param {string} text - The text to fill
-	 * @param {number} x - The x coordinate, in pixels
-	 * @param {number} y - The y coordinate, in pixels
-	 * @param {string} [font] - Optional font
-	 * @param {string} [fillStyle] - Optional fill style
-	 */
-	fillTextNow(text, x, y, font = this.ctx.font, fillStyle = this.ctx.fillStyle) {
 		[font, this.ctx.font] = [this.ctx.font, font];
 		[fillStyle, this.ctx.fillStyle] = [this.ctx.fillStyle, fillStyle];
 		this.ctx.fillText(text, x, y);
 		[font, this.ctx.font] = [this.ctx.font, font];
 		[fillStyle, this.ctx.fillStyle] = [this.ctx.fillStyle, fillStyle];
+		return Util.emptyPromise();
 	}
 
 	/**
-	 * Helper function for drawing an image
-	 * @param {CanvasImageSource} image - The image to render
+	 * Helper function for drawing an image. Draws immediately, returns an empty promise.
+	 * @param {CanvasImageSource|string} image - The image to render. If it's a string, it assumes the image has already been loaded and cached into `Render.images`
 	 * @param {number} x - The x pos, in pixels
 	 * @param {number} y - The y pos, in pixels
 	 * @param {number} [dx] - The width, in pixels
@@ -978,24 +919,11 @@ class Render {
 	 * @returns {Promise<void>}
 	 */
 	drawImage(image, x, y, dx, dy) {
+		if (typeof image === "string") image = Render.images.get(image);
 		dx ||= image.width;
 		dy ||= image.height;
 		this.ctx.drawImage(image, x, y, dx, dy);
 		return Util.emptyPromise();
-	}
-
-	/**
-	 * Helper function for drawing an image. Does not queue the render
-	 * @param {CanvasImageSource} image - The image to render
-	 * @param {number} x - The x pos, in pixels
-	 * @param {number} y - The y pos, in pixels
-	 * @param {number} dx - The width, in pixels
-	 * @param {number} dy - The height, in pixels
-	 */
-	drawImageNow(image, x, y, dx, dy) {
-		dx ||= image.width;
-		dy ||= image.height;
-		this.ctx.drawImage(image, x, y, dx, dy);
 	}
 
 	/**
@@ -1074,6 +1002,7 @@ class Setting {
  * Colors and related Methods
  */
 class Color {
+	// TODO: use actual instances of Color (and child classes) and not this `[number, number, number]` nonsense
 	/**
 	 * A random RGB color in the range [0,255]
 	 * @returns {[number, number, number]}
@@ -1093,6 +1022,21 @@ class Color {
 		const hsv2 = Color.toHSV(color2);
 		const T = Math.sign(hsv2[0] - hsv1[0]) < 0 ? t : 1 - t;
 		return Color.toRGB([(Math.min(hsv1[0], hsv2[0]) * T + Math.max(hsv1[0], hsv2[0]) * (1 - T) + 360) % 360, hsv1[1] * (1-t) + hsv2[1] * t, hsv1[2] * (1-t) + hsv2[2] * t]);
+	}
+
+	/**
+	 * Returns the relative "distance" between 2 rgb colors in the range [0,255].
+	 * 
+	 * Return range is [0, 764.8339663572415]
+	 * @param {[number, number, number]} color1 - Color 1
+	 * @param {[number, number, number]} color2 - Color 2
+	 */
+	static distance(color1, color2) {
+		const avgR = (color1[0] + color2[0])/2;
+		const dR = color1[0] - color2[0];
+		const dG = color1[1] - color2[1];
+		const dB = color1[2] - color2[2];
+		return Math.sqrt((2+avgR/256) * dR*dR + 4 * dG*dG + (2+(255 - avgR)/256) * dB*dB);
 	}
 
 	/**
@@ -1196,4 +1140,4 @@ class Color {
 	static White = [255, 255, 255];
 }
 
-export { Core, Util, Color, Player, Pile, Card, Setting };
+export { Core, Util, Render, Color, Player, Pile, Card, Setting };

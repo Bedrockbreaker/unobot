@@ -4,3 +4,4 @@ auth.json
 bot.code-workspace
 jsconfig.json
 commands.js
+template.js
