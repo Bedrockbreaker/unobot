@@ -55,7 +55,7 @@ bot.once("ready", () => {
 });
 
 bot.on("interactionCreate", async (/**@type {import("discord.js").MessageComponentInteraction} */action) => {
-	if (action.guildId === "563223150012268567") {
+	if (["563223150012268567", "582345451689213953"].includes(action.guildId)) {
 		if (auth === process.env) return;
 	} else if (auth !== process.env) return;
 	try {
